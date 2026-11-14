@@ -153,6 +153,60 @@ Pay rent tomorrow p1 #Home @bills
 Recognised words are stripped from the title, and a live hint under the box
 shows exactly how the line will be read before you press Enter.
 
+## Dictating a task
+
+Click the **mic** button in the quick-add card to switch it into dictation
+mode. It stays on until you turn it off, in both the in-app card and the
+⌥Space window.
+
+The app does not listen to your microphone — **macOS Dictation** does the
+speech-to-text, on-device, and types into whichever field has focus. Turn it on
+in  System Settings → Keyboard → Dictation, note the shortcut it shows you,
+then: press `⌥Space`, press the dictation shortcut, and speak.
+
+### Why there is no listening button
+
+Electron ships without Google's speech API keys, so Chromium's built-in
+`webkitSpeechRecognition` opens the microphone and then fails with
+`ERROR:network` — it can never transcribe. macOS has no command-line
+speech-to-text either. Recognising speech inside the app would mean bundling a
+local model (~75 MB) or sending your audio to a paid cloud service. macOS
+Dictation is already on your Mac, free, and private.
+
+### The spoken format
+
+Dictation types words, not symbols: you say "priority one" and it writes
+`priority one`, never `p1`. So dictation mode understands a spoken grammar:
+
+```
+<task title>  [when]  [at <time>]  [priority N]  [project NAME]  [label NAME]
+```
+
+Everything after the title is optional, and the modifiers may come in any
+order. Say:
+
+> Pay rent tomorrow at nine a m priority one project Rentals label bills
+
+and you get *Pay rent*, due tomorrow at 09:00, P1, in Rentals, labelled bills.
+
+| Spoken | Means |
+| --- | --- |
+| `tomorrow`, `next friday`, `december 25`, `in 3 days` | the due date |
+| `due monday` | same — the word *due* is optional |
+| `at nine a m`, `at 5 30 p m`, `at seven o clock`, `at twelve thirty p m` | a time |
+| `priority one` … `priority four`, or `p two` | priority |
+| `project Home`, `in list Errands` | the project, created if new |
+| `label calls`, `tag urgent`, `label calls and errands` | one or more labels |
+
+Typed syntax still works with dictation on, so `Buy milk p3 #Shops @errands`
+does what it always did.
+
+**It is opt-in for a reason.** With dictation mode off, "call project manager"
+is just a title. With it on, *project* is a keyword — so the mode is a toggle
+rather than something always running. Names that start with a filler word are
+ignored, which is why "buy tag for the dog" stays a title and doesn't become a
+label.
+
 ## Dates, repeats, deadlines and reminders
 
 Click any task to open the detail panel. Below the title and notes it has a row

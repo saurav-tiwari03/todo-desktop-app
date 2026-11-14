@@ -1754,6 +1754,11 @@ body.resizing-x { cursor: col-resize; -webkit-user-select: none; user-select: no
 
 #quick-input::placeholder { color: var(--text-faint); }
 
+.quick-mic { color: var(--text-faint); transition: color var(--fast) var(--ease-out), background-color var(--fast) var(--ease-out); }
+.quick-mic svg { width: 15px; height: 15px; }
+.quick-mic.on { color: var(--accent); background: var(--accent-wash); }
+.quick-card.voice { box-shadow: var(--shadow-lg), 0 0 0 1px var(--accent); }
+
 .quick-close {
   flex: 0 0 auto;
   width: 28px;

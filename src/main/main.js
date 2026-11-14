@@ -178,6 +178,7 @@ function showQuickWindow() {
   const theme = settings.theme || 'system';
   quickWindow.webContents.send('quick:open', {
     dark: theme === 'dark' || (theme === 'system' && nativeTheme.shouldUseDarkColors),
+    voice: Boolean(settings.voiceInput),
     projects: store ? store.snapshot().projects.map((p) => ({ id: p.id, name: p.name })) : []
   });
 
@@ -383,6 +384,11 @@ app.whenReady().then(() => {
 
   handle('settings:update', (patch) => store.updateSettings(patch || {}));
 
+  ipcMain.on('quick:voice', (_event, on) => {
+    store.updateSettings({ voiceInput: Boolean(on) });
+    send('state:changed', store.snapshot());
+  });
+
   ipcMain.on('quick:close', () => hideQuickWindow());
 
   ipcMain.on('quick:resize', (_event, height) => {
@@ -404,6 +410,7 @@ app.whenReady().then(() => {
     store.addTask({
       title: input.title,
       due: input.due || null,
+      dueTime: input.dueTime || null,
       priority: input.priority,
       labels: input.labels || [],
       projectId

@@ -50,6 +50,7 @@ const el = {
   quickInput: document.getElementById('quick-input'),
   quickHint: document.getElementById('quick-hint'),
   quickPlus: document.getElementById('quick-plus'),
+  quickMic: document.getElementById('quick-mic'),
   quickClose: document.getElementById('quick-close'),
   quickSubmit: document.getElementById('quick-submit'),
   toast: document.getElementById('toast'),
@@ -258,6 +259,7 @@ async function refresh() {
   state = await window.api.getState();
   applyTheme();
   applyDetailWidth(state.settings.detailWidth);
+  applyVoiceMode();
   loadLayout(state.settings);
   render();
   requestAnimationFrame(() => el.body.classList.remove('booting'));
@@ -270,7 +272,7 @@ async function refresh() {
 async function addTaskFromText(text, fallbackDue, status) {
   const clean = (text || '').trim();
   if (!clean) return null;
-  const parsed = NLP.parse(clean, state.projects);
+  const parsed = parseInput(clean);
 
   let projectId = parsed.projectId;
   // A #name that matches nothing becomes a new project, like Todoist does.
@@ -293,6 +295,7 @@ async function addTaskFromText(text, fallbackDue, status) {
   const { result, state: next } = await window.api.addTask({
     title: parsed.title || clean,
     due,
+    dueTime: parsed.dueTime || null,
     priority: parsed.priority,
     projectId,
     labels: parsed.labels,
@@ -303,11 +306,30 @@ async function addTaskFromText(text, fallbackDue, status) {
   return result;
 }
 
+/**
+ * Dictation mode: macOS Dictation types words, not symbols, so the spoken
+ * grammar has to be opted into — "project" is an ordinary word in a typed
+ * title ("call project manager"), and would otherwise be stolen from it.
+ */
+function voiceOn() {
+  return Boolean(state.settings && state.settings.voiceInput);
+}
+
+function parseInput(text) {
+  return voiceOn()
+    ? NLP.parseSpoken(text, state.projects)
+    : NLP.parse(text, state.projects);
+}
+
+const VOICE_TIP = 'Say: <b>task</b> · <b>tomorrow</b> · <b>at 9 a m</b> · '
+  + '<b>priority one</b> · <b>project Home</b> · <b>label calls</b>';
+
 /** Describes what the parser will make of the typed text. */
 function hintFor(text) {
-  const parsed = NLP.parse(text, state.projects);
+  const parsed = parseInput(text);
   const bits = [];
   if (parsed.due) bits.push(`due <b>${esc(formatDue(parsed.due))}</b>`);
+  if (parsed.dueTime) bits.push(`at <b>${esc(parsed.dueTime)}</b>`);
   if (parsed.priority < 4) bits.push(`priority <b>P${parsed.priority}</b>`);
   if (parsed.projectName) {
     bits.push(parsed.projectId
@@ -318,7 +340,7 @@ function hintFor(text) {
   if (!parsed.due && quickAddDue) bits.unshift(`due <b>${esc(friendlyDate(quickAddDue))}</b>`);
   return bits.length
     ? `<b>${esc(parsed.title || text)}</b> — ${bits.join(', ')}`
-    : 'Tip: “tomorrow”, “next friday”, “p1”, “#Project”, “@label”';
+    : (voiceOn() ? VOICE_TIP : 'Tip: “tomorrow”, “next friday”, “p1”, “#Project”, “@label”');
 }
 
 /* ------------------------------------------------------- floating quick add */
@@ -337,7 +359,10 @@ function openQuickAdd(options) {
   clearTimeout(quickCloseTimer);
   if (!quickAddOpen()) {
     el.quickInput.value = '';
-    setHint(el.quickHint, quickAddDue ? `New task due <b>${esc(friendlyDate(quickAddDue))}</b>` : '');
+    applyVoiceMode();
+    setHint(el.quickHint, quickAddDue
+      ? `New task due <b>${esc(friendlyDate(quickAddDue))}</b>`
+      : (voiceOn() ? VOICE_TIP : ''));
     el.quickCard.classList.remove('ready');
     el.quickOverlay.hidden = false;
     requestAnimationFrame(() => el.quickOverlay.classList.add('open'));
@@ -2025,6 +2050,26 @@ function setHint(node, html) {
 
 /* ------------------------------------------------- floating quick-add wiring */
 
+el.quickMic.innerHTML = ICONS.mic;
+el.quickMic.addEventListener('click', async () => {
+  await commit(window.api.updateSettings({ voiceInput: !voiceOn() }));
+  applyVoiceMode();
+  el.quickInput.focus();
+  // Re-read the field so the hint reflects the parser that is now in charge.
+  el.quickInput.dispatchEvent(new Event('input', { bubbles: true }));
+});
+
+/** Reflects dictation mode in the card: pressed button and spoken placeholder. */
+function applyVoiceMode() {
+  const on = voiceOn();
+  el.quickMic.classList.toggle('on', on);
+  el.quickMic.setAttribute('aria-pressed', String(on));
+  el.quickCard.classList.toggle('voice', on);
+  el.quickInput.placeholder = on
+    ? 'Dictate: Pay rent tomorrow priority one project Home'
+    : 'Task name';
+}
+
 el.quickPlus.innerHTML = ICONS.plus;
 el.quickClose.innerHTML = ICONS.close;
 el.quickSubmit.innerHTML = ICONS.check;
@@ -2046,7 +2091,8 @@ el.quickInput.addEventListener('keydown', (event) => {
 el.quickInput.addEventListener('input', () => {
   const text = el.quickInput.value.trim();
   el.quickCard.classList.toggle('ready', Boolean(text));
-  setHint(el.quickHint, text ? hintFor(text) : '');
+  // With dictation on, an empty field is the right moment to show the format.
+  setHint(el.quickHint, text ? hintFor(text) : (voiceOn() ? VOICE_TIP : ''));
 });
 
 el.search.addEventListener('input', () => {
