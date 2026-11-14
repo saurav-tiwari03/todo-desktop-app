@@ -37,6 +37,12 @@ contextBridge.exposeInMainWorld('api', {
     }
   },
 
+  openDictationSettings: () => ipcRenderer.invoke('dictation:settings'),
+
+  speechAvailable: () => ipcRenderer.invoke('speech:available'),
+  warmSpeech: () => ipcRenderer.invoke('speech:warm'),
+  transcribe: (samples) => ipcRenderer.invoke('speech:transcribe', samples),
+
   updateSettings: (patch) => ipcRenderer.invoke('settings:update', patch),
 
   onStateChange: (handler) => {

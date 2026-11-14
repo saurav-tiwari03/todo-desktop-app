@@ -19,8 +19,13 @@ const el = {
 let projects = [];
 let voice = false;
 
-const VOICE_TIP = 'Say: <b>task</b> · <b>tomorrow</b> · <b>at 9 a m</b> · '
+const VOICE_FORMAT = 'Say: <b>task</b> · <b>tomorrow</b> · <b>at 9 a m</b> · '
   + '<b>priority one</b> · <b>project Home</b> · <b>label calls</b>';
+
+const VOICE_TIP = '<span class="voice-how">Press your <b>macOS Dictation</b> '
+  + 'shortcut and speak — the app itself never listens. '
+  + '<button class="link-btn" id="dictation-setup">Set up dictation</button></span>'
+  + `<span class="voice-fmt">${VOICE_FORMAT}</span>`;
 
 const TIP = 'Tip: “tomorrow”, “next friday”, “p1”, “#Project”, “@label”';
 
@@ -32,6 +37,9 @@ function parseInput(text) {
 function applyVoiceMode() {
   el.mic.classList.toggle('on', voice);
   el.mic.setAttribute('aria-pressed', String(voice));
+  el.mic.title = voice
+    ? 'Spoken format on — macOS Dictation types, the app never records'
+    : 'Switch to the spoken format for macOS Dictation';
   el.card.classList.toggle('voice', voice);
   el.input.placeholder = voice
     ? 'Dictate: Pay rent tomorrow priority one project Home'
@@ -39,6 +47,9 @@ function applyVoiceMode() {
 }
 
 el.mic.innerHTML = ICONS.mic;
+el.hint.addEventListener('click', (e) => {
+  if (e.target.closest('#dictation-setup')) window.quick.openDictationSettings();
+});
 el.mic.addEventListener('click', () => {
   voice = !voice;
   window.quick.setVoice(voice);
@@ -111,7 +122,7 @@ el.input.addEventListener('input', () => {
 
   setHint(bits.length
     ? `<b>${esc(parsed.title || text)}</b> — ${bits.join(', ')}`
-    : (voice ? VOICE_TIP : TIP));
+    : (voice ? VOICE_FORMAT : TIP));
 });
 
 function submit() {

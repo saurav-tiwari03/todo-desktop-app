@@ -1,10 +1,12 @@
 'use strict';
 
 const { app, BrowserWindow, ipcMain, Menu, shell, nativeTheme, Notification,
-  Tray, globalShortcut, nativeImage, screen, dialog, protocol, net } = require('electron');
+  Tray, globalShortcut, nativeImage, screen, dialog, protocol, net,
+  session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { Store } = require('./store');
+const speech = require('./speech');
 
 // Set before anything asks for a path: userData is derived from the app name,
 // so this keeps dev runs and the packaged app on the same data file.
@@ -330,6 +332,16 @@ app.on('second-instance', () => {
 app.whenReady().then(() => {
   store = new Store(app.getPath('userData'));
 
+  // The microphone is only ever used for dictation, and only while the user
+  // holds the record button. Everything else stays denied.
+  const allowMedia = (_wc, permission, callback) => callback(permission === 'media');
+  session.defaultSession.setPermissionRequestHandler(allowMedia);
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => permission === 'media');
+
+  if (!speech.init(app.getAppPath())) {
+    console.error('Speech model missing — dictation will be unavailable.');
+  }
+
   // attachment://file/<stored-name>. basename() in attachmentPath() keeps a
   // crafted host or path from walking out of the attachments folder.
   protocol.handle('attachment', (request) => {
@@ -383,6 +395,35 @@ app.whenReady().then(() => {
   handle('task:complete', (id) => store.completeTask(id, todayISO()));
 
   handle('settings:update', (patch) => store.updateSettings(patch || {}));
+
+  // The app never records; macOS Dictation does. Send people straight to the
+  // pane where they switch it on and see their own trigger shortcut.
+  const DICTATION_PANE =
+    'x-apple.systempreferences:com.apple.preference.keyboard?Dictation';
+
+  ipcMain.handle('dictation:settings', () => shell.openExternal(DICTATION_PANE));
+
+  ipcMain.handle('speech:available', () => speech.available());
+
+  // Warms the model so the first recording is not the one that waits for it.
+  ipcMain.handle('speech:warm', async () => {
+    try {
+      await speech.load();
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err.message };
+    }
+  });
+
+  ipcMain.handle('speech:transcribe', async (_event, samples) => {
+    try {
+      return { text: await speech.transcribe(samples) };
+    } catch (err) {
+      console.error('Transcription failed:', err.message);
+      return { error: err.message };
+    }
+  });
+  ipcMain.on('quick:dictation-settings', () => shell.openExternal(DICTATION_PANE));
 
   ipcMain.on('quick:voice', (_event, on) => {
     store.updateSettings({ voiceInput: Boolean(on) });

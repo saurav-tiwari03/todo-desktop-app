@@ -2,7 +2,7 @@
   "name": "kodeit-todo",
   "productName": "Kodeit Todo",
   "version": "1.0.0",
-  "description": "Kodeit Todo \u2014 a personal todo app for the desktop",
+  "description": "Kodeit Todo — a personal todo app for the desktop",
   "main": "src/main/main.js",
   "author": "Saurav Tiwari",
   "license": "MIT",
@@ -44,5 +44,8 @@
       "icon": "build/icon.icns"
     },
     "afterPack": "scripts/adhoc-sign.js"
+  },
+  "dependencies": {
+    "@huggingface/transformers": "^4.3.2"
   }
 }

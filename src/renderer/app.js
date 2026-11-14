@@ -321,8 +321,15 @@ function parseInput(text) {
     : NLP.parse(text, state.projects);
 }
 
-const VOICE_TIP = 'Say: <b>task</b> · <b>tomorrow</b> · <b>at 9 a m</b> · '
+const VOICE_FORMAT = 'Say: <b>task</b> · <b>tomorrow</b> · <b>at 9 a m</b> · '
   + '<b>priority one</b> · <b>project Home</b> · <b>label calls</b>';
+
+// Spelled out because a mic button that does not record is otherwise baffling:
+// macOS Dictation types into this field, the app only reads what lands here.
+const VOICE_TIP = '<span class="voice-how">Press your <b>macOS Dictation</b> '
+  + 'shortcut and speak — the app itself never listens. '
+  + '<button class="link-btn" id="dictation-setup">Set up dictation</button></span>'
+  + `<span class="voice-fmt">${VOICE_FORMAT}</span>`;
 
 /** Describes what the parser will make of the typed text. */
 function hintFor(text) {
@@ -340,7 +347,7 @@ function hintFor(text) {
   if (!parsed.due && quickAddDue) bits.unshift(`due <b>${esc(friendlyDate(quickAddDue))}</b>`);
   return bits.length
     ? `<b>${esc(parsed.title || text)}</b> — ${bits.join(', ')}`
-    : (voiceOn() ? VOICE_TIP : 'Tip: “tomorrow”, “next friday”, “p1”, “#Project”, “@label”');
+    : (voiceOn() ? VOICE_FORMAT : 'Tip: “tomorrow”, “next friday”, “p1”, “#Project”, “@label”');
 }
 
 /* ------------------------------------------------------- floating quick add */
@@ -2051,6 +2058,9 @@ function setHint(node, html) {
 /* ------------------------------------------------- floating quick-add wiring */
 
 el.quickMic.innerHTML = ICONS.mic;
+el.quickHint.addEventListener('click', (e) => {
+  if (e.target.closest('#dictation-setup')) window.api.openDictationSettings();
+});
 el.quickMic.addEventListener('click', async () => {
   await commit(window.api.updateSettings({ voiceInput: !voiceOn() }));
   applyVoiceMode();
@@ -2064,6 +2074,9 @@ function applyVoiceMode() {
   const on = voiceOn();
   el.quickMic.classList.toggle('on', on);
   el.quickMic.setAttribute('aria-pressed', String(on));
+  el.quickMic.title = on
+    ? 'Spoken format on — macOS Dictation types, the app never records'
+    : 'Switch to the spoken format for macOS Dictation';
   el.quickCard.classList.toggle('voice', on);
   el.quickInput.placeholder = on
     ? 'Dictate: Pay rent tomorrow priority one project Home'

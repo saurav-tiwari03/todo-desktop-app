@@ -1803,6 +1803,24 @@ body.resizing-x { cursor: col-resize; -webkit-user-select: none; user-select: no
 }
 
 .quick-hint.visible { max-height: 34px; opacity: 1; padding: 7px 46px 2px; }
+
+/* The dictation hint is two lines: what to press, then the spoken format. */
+.quick-card.voice .quick-hint.visible { max-height: 70px; }
+.voice-how, .voice-fmt { display: block; }
+.voice-how { margin-bottom: 3px; }
+.voice-fmt { color: var(--text-faint); }
+
+.link-btn {
+  border: 0;
+  padding: 0;
+  background: none;
+  font: inherit;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.link-btn:hover { filter: brightness(1.15); }
 .quick-hint b { color: var(--text); font-weight: 600; }
 
 /* ===========================================================================
