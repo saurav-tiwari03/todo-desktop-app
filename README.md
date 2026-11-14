@@ -47,7 +47,7 @@ Three shapes come out of the build, all the same app:
 
 | What | Where | For |
 |---|---|---|
-| Disk image | `dist/Kodeit Todo-1.0.0-arm64.dmg` | the familiar mount-and-drag install |
+| Disk image | `dist/Kodeit Todo-1.0.0-arm64.dmg` (173 MB) | the familiar mount-and-drag install |
 | Folder | `dist/Kodeit Todo 1.0.0/` | copying straight to another Mac you own |
 | Zip | `dist/Kodeit Todo-1.0.0-arm64-folder.zip` | sending it to someone |
 
@@ -156,6 +156,9 @@ shows exactly how the line will be read before you press Enter.
 
 ## Dictating a task
 
+> Requires `npm run fetch-model` once before building — the model is 75 MB and
+> is kept out of git.
+
 Click the **mic** button in the quick-add card to switch it into dictation
 mode. It stays on until you turn it off, in both the in-app card and the
 ⌥Space window.
@@ -168,7 +171,8 @@ hearing you. A second later the words land in the field, already parsed.
 ### It runs on your Mac
 
 Transcription is **Whisper base.en**, bundled with the app (75 MB) and run
-through ONNX Runtime in the main process. The renderer records, resamples to
+through ONNX Runtime in the main process. It is why the disk image is 173 MB
+rather than 98 MB. The renderer records, resamples to
 16 kHz, and hands raw samples over IPC — **no audio leaves the machine, and it
 works with no network at all**. Recording stops on its own after a minute so a
 forgotten session can't hold the microphone open.
