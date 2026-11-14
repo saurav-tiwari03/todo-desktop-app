@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self';" />
+  <title>Kodeit Todo</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="booting">
+  <div class="titlebar"></div>
+
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <img class="brand-mark" src="assets/logo.png" alt="" />
+        <span class="brand-name">Kodeit Todo</span>
+      </div>
+
+      <span class="nav-indicator" id="nav-indicator"></span>
+
+      <button class="add-task-btn" id="add-task-btn">
+        <span class="add-task-icon"></span>
+        <span>Add task</span>
+      </button>
+
+      <nav class="views" id="views"></nav>
+
+      <div class="section-head">
+        <span>Projects</span>
+        <button class="icon-btn" id="add-project-btn" title="New project (⌘⇧N)" aria-label="New project"></button>
+      </div>
+      <nav class="projects" id="projects"></nav>
+
+      <div class="sidebar-foot">
+        <button class="ghost-btn" id="theme-btn"></button>
+      </div>
+    </aside>
+
+    <main class="main">
+      <header class="main-head">
+        <div class="head-text" id="head-text">
+          <h1 id="view-title">Today</h1>
+          <p id="view-subtitle"></p>
+        </div>
+        <div class="head-actions">
+          <div class="search-wrap" id="search-wrap">
+            <input type="search" id="search" placeholder="Search" autocomplete="off" />
+          </div>
+          <button class="ghost-btn" id="layout-btn">
+            <span class="layout-icon"></span><span>Layout</span>
+            <span class="lay-dot" id="layout-dot" hidden></span>
+          </button>
+        </div>
+      </header>
+
+      <div class="progress" id="progress"><span id="progress-bar"></span></div>
+
+      <div class="composer" id="composer">
+        <div class="composer-field" id="composer-field">
+          <input type="text" id="quick-add" autocomplete="off" spellcheck="false"
+                 placeholder="Add a task — try &quot;Pay rent tomorrow p1 #Home&quot;" />
+        </div>
+        <div class="composer-hint" id="composer-hint"></div>
+      </div>
+
+      <section class="list-wrap" id="list-wrap">
+        <div id="task-list" class="task-list"></div>
+        <div id="board-view" class="board-view" hidden></div>
+        <div id="calendar-view" class="calendar-view" hidden></div>
+        <div id="empty" class="empty hidden"></div>
+        <div id="completed-section"></div>
+      </section>
+    </main>
+
+    <aside class="detail" id="detail">
+      <div class="detail-resizer" id="detail-resizer" title="Drag to resize · double-click to reset"></div>
+      <div class="detail-inner" id="detail-inner"></div>
+    </aside>
+  </div>
+
+  <div class="quick-overlay" id="quick-overlay" hidden>
+    <div class="quick-card" id="quick-card">
+      <div class="quick-row">
+        <span class="quick-plus" id="quick-plus"></span>
+        <input type="text" id="quick-input" placeholder="Task name" autocomplete="off" spellcheck="false" />
+        <button class="icon-btn quick-close" id="quick-close" title="Close (Esc)" aria-label="Close"></button>
+        <button class="quick-submit" id="quick-submit" title="Add task (Enter)" aria-label="Add task"></button>
+      </div>
+      <div class="quick-hint" id="quick-hint"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" hidden></div>
+
+  <div class="dialog-backdrop" id="dialog-backdrop" hidden>
+    <div class="dialog" id="dialog"></div>
+  </div>
+
+  <script src="icons.js"></script>
+  <script src="nlp.js"></script>
+  <script src="pickers.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

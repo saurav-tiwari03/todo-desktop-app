@@ -1,0 +1,46 @@
+{
+  "name": "kodeit-todo",
+  "productName": "Kodeit Todo",
+  "version": "1.0.0",
+  "description": "Kodeit Todo \u2014 a personal todo app for the desktop",
+  "main": "src/main/main.js",
+  "author": "Saurav Tiwari",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "dist": "electron-builder --mac",
+    "pack": "electron-builder --dir",
+    "seed": "node scripts/seed.js"
+  },
+  "devDependencies": {
+    "electron": "^34.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.kodeit.todo",
+    "productName": "Kodeit Todo",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "build/icon.icns"
+    },
+    "afterPack": "scripts/adhoc-sign.js"
+  }
+}
