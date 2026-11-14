@@ -12,7 +12,9 @@
     "dev": "electron . --dev",
     "dist": "electron-builder --mac",
     "pack": "electron-builder --dir",
-    "seed": "node scripts/seed.js"
+    "seed": "node scripts/seed.js",
+    "dist:zip": "electron-builder --mac zip",
+    "dist:dmg": "electron-builder --mac dmg"
   },
   "devDependencies": {
     "electron": "^34.0.0",
@@ -34,6 +36,12 @@
       "target": [
         {
           "target": "dmg",
+          "arch": [
+            "arm64"
+          ]
+        },
+        {
+          "target": "zip",
           "arch": [
             "arm64"
           ]
