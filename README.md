@@ -16,6 +16,7 @@ npm run dev        # launch with DevTools open
 ## Build a real .app
 
 ```bash
+npm run fetch-model  # once: downloads the 75 MB speech model into models/
 npm run dist       # dist/Kodeit Todo-1.0.0-arm64.dmg  + dist/mac-arm64/Kodeit Todo.app
 npm run pack       # just the .app, no disk image (faster, for testing)
 ```
@@ -159,19 +160,32 @@ Click the **mic** button in the quick-add card to switch it into dictation
 mode. It stays on until you turn it off, in both the in-app card and the
 ⌥Space window.
 
-The app does not listen to your microphone — **macOS Dictation** does the
-speech-to-text, on-device, and types into whichever field has focus. Turn it on
-in  System Settings → Keyboard → Dictation, note the shortcut it shows you,
-then: press `⌥Space`, press the dictation shortcut, and speak.
+Click the **mic** in the quick-add card and speak; click it again when you're
+done. The first click asks for microphone permission. While it listens, the
+button glows and its ring tracks your voice level, so you can see it is
+hearing you. A second later the words land in the field, already parsed.
 
-### Why there is no listening button
+### It runs on your Mac
 
-Electron ships without Google's speech API keys, so Chromium's built-in
-`webkitSpeechRecognition` opens the microphone and then fails with
-`ERROR:network` — it can never transcribe. macOS has no command-line
-speech-to-text either. Recognising speech inside the app would mean bundling a
-local model (~75 MB) or sending your audio to a paid cloud service. macOS
-Dictation is already on your Mac, free, and private.
+Transcription is **Whisper base.en**, bundled with the app (75 MB) and run
+through ONNX Runtime in the main process. The renderer records, resamples to
+16 kHz, and hands raw samples over IPC — **no audio leaves the machine, and it
+works with no network at all**. Recording stops on its own after a minute so a
+forgotten session can't hold the microphone open.
+
+Typical timings on an M-series Mac: the model loads once in about a second
+(warmed while you are still speaking), then roughly 0.9 s per short phrase.
+
+Microphone permission is requested the first time you press the button, and
+`NSMicrophoneUsageDescription` explains why. If you deny it, the app says so
+and points at  System Settings → Privacy & Security → Microphone.
+
+### Why not the browser's speech API
+
+Electron ships without Google's speech API keys, so Chromium's
+`webkitSpeechRecognition` opens the microphone and then dies with
+`ERROR:network` — it can never transcribe. That is why the model is bundled
+instead.
 
 ### The spoken format
 

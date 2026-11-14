@@ -2,7 +2,7 @@
   "name": "kodeit-todo",
   "productName": "Kodeit Todo",
   "version": "1.0.0",
-  "description": "Kodeit Todo — a personal todo app for the desktop",
+  "description": "Kodeit Todo \u2014 a personal todo app for the desktop",
   "main": "src/main/main.js",
   "author": "Saurav Tiwari",
   "license": "MIT",
@@ -14,7 +14,8 @@
     "pack": "electron-builder --dir",
     "seed": "node scripts/seed.js",
     "release": "node scripts/release.js",
-    "dist:signed": "electron-builder --mac --config.mac.notarize=true"
+    "dist:signed": "electron-builder --mac --config.mac.notarize=true",
+    "fetch-model": "node scripts/fetch-model.js"
   },
   "devDependencies": {
     "electron": "^34.0.0",
@@ -29,7 +30,16 @@
     },
     "files": [
       "src/**/*",
-      "package.json"
+      "package.json",
+      "node_modules/@huggingface/transformers/**/*",
+      "node_modules/onnxruntime-node/**/*",
+      "node_modules/onnxruntime-common/**/*",
+      "node_modules/sharp/**/*",
+      "node_modules/@img/**/*",
+      "!node_modules/onnxruntime-node/bin/napi-v6/win32",
+      "!node_modules/onnxruntime-node/bin/napi-v6/linux",
+      "!node_modules/onnxruntime-node/bin/napi-v6/darwin/x64",
+      "!node_modules/@huggingface/transformers/.cache"
     ],
     "mac": {
       "category": "public.app-category.productivity",
@@ -41,9 +51,22 @@
           ]
         }
       ],
-      "icon": "build/icon.icns"
+      "icon": "build/icon.icns",
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "Kodeit Todo uses the microphone only when you press the dictation button, to turn what you say into a task. The audio is transcribed on this Mac and never leaves it."
+      }
     },
-    "afterPack": "scripts/adhoc-sign.js"
+    "afterPack": "scripts/adhoc-sign.js",
+    "asarUnpack": [
+      "node_modules/onnxruntime-node/**/*",
+      "models/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "models",
+        "to": "models"
+      }
+    ]
   },
   "dependencies": {
     "@huggingface/transformers": "^4.3.2"

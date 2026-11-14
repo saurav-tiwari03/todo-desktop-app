@@ -22,41 +22,98 @@ let voice = false;
 const VOICE_FORMAT = 'Say: <b>task</b> · <b>tomorrow</b> · <b>at 9 a m</b> · '
   + '<b>priority one</b> · <b>project Home</b> · <b>label calls</b>';
 
-const VOICE_TIP = '<span class="voice-how">Press your <b>macOS Dictation</b> '
-  + 'shortcut and speak — the app itself never listens. '
-  + '<button class="link-btn" id="dictation-setup">Set up dictation</button></span>'
+const VOICE_TIP = '<span class="voice-how">Click the <b>mic</b> and speak — '
+  + 'transcribed on this Mac, nothing is uploaded.</span>'
+  + `<span class="voice-fmt">${VOICE_FORMAT}</span>`;
+
+const LISTENING_TIP = '<span class="voice-how"><span class="rec-dot"></span>'
+  + '<b>Listening…</b> click the mic again when you are done.</span>'
   + `<span class="voice-fmt">${VOICE_FORMAT}</span>`;
 
 const TIP = 'Tip: “tomorrow”, “next friday”, “p1”, “#Project”, “@label”';
 
-/** Dictation writes words, not symbols, so the spoken grammar is opt-in. */
+// True while the field holds something that came out of the microphone.
+let spokenInput = false;
+
+/** Dictated words, not symbols, so the spoken grammar reads the transcript. */
 function parseInput(text) {
-  return voice ? NLP.parseSpoken(text, projects) : NLP.parse(text, projects);
+  return (voice || spokenInput)
+    ? NLP.parseSpoken(text, projects)
+    : NLP.parse(text, projects);
 }
 
 function applyVoiceMode() {
-  el.mic.classList.toggle('on', voice);
-  el.mic.setAttribute('aria-pressed', String(voice));
-  el.mic.title = voice
-    ? 'Spoken format on — macOS Dictation types, the app never records'
-    : 'Switch to the spoken format for macOS Dictation';
   el.card.classList.toggle('voice', voice);
   el.input.placeholder = voice
-    ? 'Dictate: Pay rent tomorrow priority one project Home'
+    ? 'Say: Pay rent tomorrow priority one project Home'
     : 'Task name';
 }
 
 el.mic.innerHTML = ICONS.mic;
-el.hint.addEventListener('click', (e) => {
-  if (e.target.closest('#dictation-setup')) window.quick.openDictationSettings();
-});
-el.mic.addEventListener('click', () => {
-  voice = !voice;
-  window.quick.setVoice(voice);
-  applyVoiceMode();
+el.mic.addEventListener('click', () => toggleDictation());
+
+async function toggleDictation() {
+  if (Recorder.recording()) return finishDictation();
+
+  if (!(await window.quick.speechAvailable())) {
+    setHint('<b>The speech model is not installed in this build.</b>');
+    return;
+  }
+
+  try {
+    await Recorder.start({
+      onLevel: (level) => el.mic.style.setProperty('--level', level.toFixed(3)),
+      onAuto: () => finishDictation()
+    });
+  } catch (err) {
+    setHint(err && err.name === 'NotAllowedError'
+      ? '<b>Microphone denied</b> — allow it in System Settings → Privacy &amp; Security → Microphone.'
+      : '<b>No microphone was available.</b>');
+    setDictationState('idle');
+    return;
+  }
+
+  setDictationState('recording');
+  window.quick.warmSpeech();
+}
+
+async function finishDictation() {
+  const samples = await Recorder.stop();
+  el.mic.style.removeProperty('--level');
+  if (!samples) {
+    setDictationState('idle');
+    return;
+  }
+
+  setDictationState('working');
+  const { text, error } = await window.quick.transcribe(samples);
+  setDictationState('idle');
+
+  if (error || !text) {
+    setHint(error ? `<b>Could not transcribe:</b> ${esc(error)}`
+                  : '<b>Nothing was heard</b> — try again, a little closer.');
+    return;
+  }
+
+  spokenInput = true;
+  const existing = el.input.value.trim();
+  el.input.value = existing ? `${existing} ${text}` : text;
   el.input.focus();
   el.input.dispatchEvent(new Event('input', { bubbles: true }));
-});
+}
+
+function setDictationState(mode) {
+  el.mic.classList.toggle('rec', mode === 'recording');
+  el.mic.classList.toggle('busy', mode === 'working');
+  el.card.classList.toggle('listening', mode === 'recording');
+  el.mic.title = mode === 'recording' ? 'Stop and transcribe'
+    : mode === 'working' ? 'Transcribing…'
+    : 'Dictate a task';
+  if (mode === 'recording') setHint(LISTENING_TIP);
+  else if (mode === 'working') setHint('<b>Transcribing…</b>');
+  else if (!el.input.value.trim()) setHint(voice ? VOICE_TIP : '');
+  fit();
+}
 
 el.plus.innerHTML = ICONS.plus;
 el.close.innerHTML = ICONS.close;
@@ -138,6 +195,7 @@ function submit() {
     projectId: parsed.projectId,
     projectName: parsed.projectName
   });
+  spokenInput = false;
   reset();
 }
 
@@ -162,6 +220,9 @@ el.close.addEventListener('click', () => {
 window.quick.onOpen((payload) => {
   projects = payload.projects || [];
   voice = Boolean(payload.voice);
+  spokenInput = false;
+  Recorder.cancel();
+  setDictationState('idle');
   document.documentElement.classList.toggle('dark', Boolean(payload.dark));
   applyVoiceMode();
   reset();

@@ -1757,6 +1757,33 @@ body.resizing-x { cursor: col-resize; -webkit-user-select: none; user-select: no
 .quick-mic { color: var(--text-faint); transition: color var(--fast) var(--ease-out), background-color var(--fast) var(--ease-out); }
 .quick-mic svg { width: 15px; height: 15px; }
 .quick-mic.on { color: var(--accent); background: var(--accent-wash); }
+
+/* Recording: the ring grows with --level, which the recorder updates per frame. */
+.quick-mic.rec {
+  color: #fff;
+  background: var(--p1);
+  box-shadow: 0 0 0 calc(2px + var(--level, 0) * 7px) color-mix(in srgb, var(--p1) 28%, transparent);
+}
+
+.quick-mic.busy { color: var(--accent); background: var(--accent-wash); }
+.quick-mic.busy svg { animation: mic-pulse 900ms var(--ease-out) infinite; }
+
+@keyframes mic-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.rec-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--p1);
+  animation: mic-pulse 1.1s var(--ease-out) infinite;
+}
+
+.quick-card.listening { box-shadow: var(--shadow-lg), 0 0 0 1px var(--p1); }
 .quick-card.voice { box-shadow: var(--shadow-lg), 0 0 0 1px var(--accent); }
 
 .quick-close {

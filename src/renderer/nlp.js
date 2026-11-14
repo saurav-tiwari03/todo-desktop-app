@@ -133,7 +133,8 @@ const NLP = (() => {
   ]);
 
   function namedValue(raw) {
-    const name = String(raw || '').trim();
+    // Whisper punctuates: "label bills." must not become the label "bills.".
+    const name = String(raw || '').trim().replace(/[.,!?;:]+$/, '').trim();
     if (!name) return null;
     if (FUNCTION_WORDS.has(name.split(/\s+/)[0].toLowerCase())) return null;
     return name;

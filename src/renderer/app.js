@@ -312,8 +312,11 @@ async function addTaskFromText(text, fallbackDue, status) {
  * title ("call project manager"), and would otherwise be stolen from it.
  */
 function voiceOn() {
-  return Boolean(state.settings && state.settings.voiceInput);
+  return spokenInput || Boolean(state.settings && state.settings.voiceInput);
 }
+
+// True while the field holds something that came out of the microphone.
+let spokenInput = false;
 
 function parseInput(text) {
   return voiceOn()
@@ -326,9 +329,12 @@ const VOICE_FORMAT = 'Say: <b>task</b> · <b>tomorrow</b> · <b>at 9 a m</b> · 
 
 // Spelled out because a mic button that does not record is otherwise baffling:
 // macOS Dictation types into this field, the app only reads what lands here.
-const VOICE_TIP = '<span class="voice-how">Press your <b>macOS Dictation</b> '
-  + 'shortcut and speak — the app itself never listens. '
-  + '<button class="link-btn" id="dictation-setup">Set up dictation</button></span>'
+const VOICE_TIP = '<span class="voice-how">Click the <b>mic</b> and speak — '
+  + 'transcribed on this Mac, nothing is uploaded.</span>'
+  + `<span class="voice-fmt">${VOICE_FORMAT}</span>`;
+
+const LISTENING_TIP = '<span class="voice-how"><span class="rec-dot"></span>'
+  + '<b>Listening…</b> click the mic again when you are done.</span>'
   + `<span class="voice-fmt">${VOICE_FORMAT}</span>`;
 
 /** Describes what the parser will make of the typed text. */
@@ -366,6 +372,9 @@ function openQuickAdd(options) {
   clearTimeout(quickCloseTimer);
   if (!quickAddOpen()) {
     el.quickInput.value = '';
+    spokenInput = false;
+    Recorder.cancel();
+    setDictationState('idle');
     applyVoiceMode();
     setHint(el.quickHint, quickAddDue
       ? `New task due <b>${esc(friendlyDate(quickAddDue))}</b>`
@@ -380,6 +389,9 @@ function openQuickAdd(options) {
 function closeQuickAdd() {
   quickAddDue = null;
   quickAddStatus = null;
+  // Closing must release the microphone, or the recording indicator lingers.
+  Recorder.cancel();
+  setDictationState('idle');
   if (!quickAddOpen()) return;
   el.quickOverlay.classList.remove('open');
   quickCloseTimer = setTimeout(() => {
@@ -398,6 +410,9 @@ async function submitQuickAdd() {
   closeQuickAdd();
 
   const task = await addTaskFromText(text, due, status);
+  // Cleared only once the text has been parsed — doing it earlier would make
+  // the task fall back to the typed grammar the hint never used.
+  spokenInput = false;
   if (task) toast(`${ICONS.check}<span>Added <b>${esc(task.title)}</b></span>`);
 }
 
@@ -2061,25 +2076,87 @@ el.quickMic.innerHTML = ICONS.mic;
 el.quickHint.addEventListener('click', (e) => {
   if (e.target.closest('#dictation-setup')) window.api.openDictationSettings();
 });
-el.quickMic.addEventListener('click', async () => {
-  await commit(window.api.updateSettings({ voiceInput: !voiceOn() }));
-  applyVoiceMode();
+
+el.quickMic.addEventListener('click', () => toggleDictation());
+
+/**
+ * Click to speak, click again to stop. The first click is what makes macOS
+ * ask for the microphone; everything after that is local.
+ */
+async function toggleDictation() {
+  if (Recorder.recording()) return finishDictation();
+
+  if (!(await window.api.speechAvailable())) {
+    toast('The speech model is not installed in this build.');
+    return;
+  }
+
+  try {
+    await Recorder.start({
+      onLevel: (level) => el.quickMic.style.setProperty('--level', level.toFixed(3)),
+      onAuto: () => finishDictation()
+    });
+  } catch (err) {
+    // Denied, or no microphone at all.
+    toast(err && err.name === 'NotAllowedError'
+      ? 'Microphone access was denied — allow it in System Settings → Privacy & Security → Microphone.'
+      : 'No microphone was available.');
+    setDictationState('idle');
+    return;
+  }
+
+  setDictationState('recording');
+  window.api.warmSpeech();           // load the model while they are still talking
+}
+
+async function finishDictation() {
+  const samples = await Recorder.stop();
+  el.quickMic.style.removeProperty('--level');
+  if (!samples) {
+    setDictationState('idle');
+    return;
+  }
+
+  setDictationState('working');
+  const { text, error } = await window.api.transcribe(samples);
+  setDictationState('idle');
+
+  if (error) {
+    toast(`Could not transcribe: ${esc(error)}`);
+    return;
+  }
+  if (!text) {
+    toast('Nothing was heard — try again a little closer to the mic.');
+    return;
+  }
+
+  spokenInput = true;
+  const existing = el.quickInput.value.trim();
+  el.quickInput.value = existing ? `${existing} ${text}` : text;
   el.quickInput.focus();
-  // Re-read the field so the hint reflects the parser that is now in charge.
   el.quickInput.dispatchEvent(new Event('input', { bubbles: true }));
-});
+}
+
+function setDictationState(mode) {
+  el.quickMic.classList.toggle('rec', mode === 'recording');
+  el.quickMic.classList.toggle('busy', mode === 'working');
+  el.quickCard.classList.toggle('listening', mode === 'recording');
+  el.quickMic.title = mode === 'recording' ? 'Stop and transcribe'
+    : mode === 'working' ? 'Transcribing…'
+    : 'Dictate a task';
+  if (mode === 'recording') setHint(el.quickHint, LISTENING_TIP);
+  else if (mode === 'working') setHint(el.quickHint, '<b>Transcribing…</b>');
+  else if (!el.quickInput.value.trim()) setHint(el.quickHint, voiceOn() ? VOICE_TIP : '');
+}
 
 /** Reflects dictation mode in the card: pressed button and spoken placeholder. */
 function applyVoiceMode() {
   const on = voiceOn();
   el.quickMic.classList.toggle('on', on);
   el.quickMic.setAttribute('aria-pressed', String(on));
-  el.quickMic.title = on
-    ? 'Spoken format on — macOS Dictation types, the app never records'
-    : 'Switch to the spoken format for macOS Dictation';
   el.quickCard.classList.toggle('voice', on);
   el.quickInput.placeholder = on
-    ? 'Dictate: Pay rent tomorrow priority one project Home'
+    ? 'Say: Pay rent tomorrow priority one project Home'
     : 'Task name';
 }
 
