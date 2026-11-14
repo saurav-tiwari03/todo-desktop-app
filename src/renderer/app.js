@@ -459,11 +459,15 @@ function renderSidebar() {
     ? custom.map((p) => {
       const active = ui.view === 'project' && ui.projectId === p.id ? ' active' : '';
       const n = state.tasks.filter((t) => t.projectId === p.id && !t.completed).length;
-      return `<button class="nav-item${active}" data-project="${p.id}">
-        <span class="dot ${colorClass(p)}"></span>
-        <span class="nav-label">${esc(p.name)}</span>
-        ${n ? `<span class="nav-count">${n}</span>` : ''}
-      </button>`;
+      return `<div class="nav-row">
+        <button class="nav-item${active}" data-project="${p.id}">
+          <span class="dot ${colorClass(p)}"></span>
+          <span class="nav-label">${esc(p.name)}</span>
+          ${n ? `<span class="nav-count">${n}</span>` : ''}
+        </button>
+        <button class="nav-more" data-more="${p.id}" title="Project options"
+                aria-label="Options for ${esc(p.name)}">${ICONS.more}</button>
+      </div>`;
     }).join('')
     : '<p class="sidebar-note">No projects yet</p>';
 
@@ -545,6 +549,7 @@ function taskSignature(task) {
     (task.reminders || []).map((r) => r.at).join('\u0001'),
     task.priority, task.projectId,
     (task.labels || []).join('\u0001'), task.completed ? 1 : 0,
+    (task.comments || []).map((c) => `${c.id}:${c.editedAt || 0}:${(c.attachments || []).length}`).join('\u0001'),
     ui.view, ui.projectId || '', todayISO()
   ].join('\u0000');
 }
@@ -578,6 +583,11 @@ function taskInner(task) {
   }
   if (task.priority < 4) {
     meta.push(`<span class="chip prio-${task.priority}">P${task.priority}</span>`);
+  }
+  const comments = (task.comments || []).length;
+  if (comments) {
+    const files = (task.comments || []).reduce((n, c) => n + (c.attachments || []).length, 0);
+    meta.push(`<span class="chip row-comments" title="${comments} comment${comments === 1 ? '' : 's'}${files ? `, ${files} attachment${files === 1 ? '' : 's'}` : ''}">${files ? ICONS.paperclip : ICONS.comment}${comments}</span>`);
   }
   if (showProject) {
     meta.push(`<span class="chip"><span class="dot ${colorClass(project)}"></span>${esc(project.name)}</span>`);
@@ -1125,6 +1135,115 @@ function detailRow(key, label, valueHTML) {
   </button>`;
 }
 
+/* ========================================================================= */
+/* Comments and attachments                                                  */
+/* ========================================================================= */
+
+const IMAGE_EXT = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'bmp', 'avif', 'svg'];
+
+/** A draft survives a re-render, so a half-written comment is never lost. */
+let commentDraft = { taskId: null, text: '', paths: [] };
+
+function draftFor(taskId) {
+  if (commentDraft.taskId !== taskId) commentDraft = { taskId, text: '', paths: [] };
+  return commentDraft;
+}
+
+function fileSize(bytes) {
+  if (!bytes) return '';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+}
+
+function commentTime(ts) {
+  const date = new Date(ts);
+  const time = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const day = new Date(ts).toISOString().slice(0, 10);
+  if (day === todayISO()) return `Today ${time}`;
+  return `${shortDate(day)} ${time}`;
+}
+
+function isImage(attachment) {
+  return IMAGE_EXT.includes(String(attachment.ext || '').toLowerCase());
+}
+
+function attachmentNode(comment, attachment) {
+  const name = esc(attachment.name);
+  const meta = fileSize(attachment.size);
+  const remove = `<button class="att-x" data-rm-att="${attachment.id}" data-rm-comment="${comment.id}"
+      title="Remove ${name}" aria-label="Remove ${name}">${ICONS.close}</button>`;
+
+  if (isImage(attachment)) {
+    return `<div class="att att-image">
+      <button class="att-open" data-open="${esc(attachment.file)}" title="Open ${name}">
+        <img src="attachment://f/${encodeURIComponent(attachment.file)}" alt="${name}" />
+      </button>
+      <span class="att-cap">${name}</span>${remove}
+    </div>`;
+  }
+
+  return `<div class="att att-file">
+    <button class="att-open" data-open="${esc(attachment.file)}" title="Open ${name}">
+      <span class="att-icon">${ICONS.file}</span>
+      <span class="att-text"><span class="att-name">${name}</span><span class="att-size">${meta}</span></span>
+    </button>${remove}
+  </div>`;
+}
+
+function commentNode(comment) {
+  const attachments = comment.attachments || [];
+  return `<article class="comment" data-comment="${comment.id}">
+    <header class="comment-head">
+      <time>${esc(commentTime(comment.at))}</time>
+      ${comment.editedAt ? '<span class="comment-edited">edited</span>' : ''}
+      <span class="comment-tools">
+        ${comment.text ? `<button class="icon-btn" data-edit="${comment.id}" title="Edit">${ICONS.pencil}</button>` : ''}
+        <button class="icon-btn" data-del-comment="${comment.id}" title="Delete">${ICONS.trash}</button>
+      </span>
+    </header>
+    ${comment.text ? `<p class="comment-text">${esc(comment.text)}</p>` : ''}
+    ${attachments.length ? `<div class="att-grid">${attachments.map((a) => attachmentNode(comment, a)).join('')}</div>` : ''}
+  </article>`;
+}
+
+function commentsSection(task) {
+  const comments = task.comments || [];
+  const draft = draftFor(task.id);
+
+  return `<section class="comments">
+    <h3 class="comments-head">
+      ${ICONS.comment}<span>Comments</span>
+      ${comments.length ? `<span class="comments-n">${comments.length}</span>` : ''}
+    </h3>
+
+    <div class="comment-list">
+      ${comments.length
+        ? comments.map(commentNode).join('')
+        : '<p class="comments-empty">No comments yet. Add a note to your future self, or attach a file.</p>'}
+    </div>
+
+    <div class="composer" id="c-composer">
+      <textarea id="c-text" placeholder="Write a comment…">${esc(draft.text)}</textarea>
+      <div class="composer-pending" id="c-pending">${pendingChips(draft.paths)}</div>
+      <div class="composer-actions">
+        <button class="icon-btn" id="c-attach" title="Attach files">${ICONS.paperclip}</button>
+        <span class="composer-hint">Drop files here · ⌘↵ to send</span>
+        <button class="primary-btn" id="c-send">${ICONS.send}<span>Comment</span></button>
+      </div>
+      <div class="composer-drop"><span>Drop to attach</span></div>
+    </div>
+  </section>`;
+}
+
+function pendingChips(paths) {
+  return paths.map((full, i) => {
+    const name = esc(full.split('/').pop());
+    return `<span class="pending-chip">${ICONS.paperclip}<span class="t">${name}</span>
+      <button class="att-x" data-unpend="${i}" title="Remove ${name}" aria-label="Remove ${name}">${ICONS.close}</button></span>`;
+  }).join('');
+}
+
 function renderDetail() {
   const task = ui.selectedId ? state.tasks.find((t) => t.id === ui.selectedId) : null;
 
@@ -1187,6 +1306,8 @@ function renderDetail() {
         : null)}
     </div>
 
+    ${commentsSection(task)}
+
     <div class="detail-foot">
       <button class="danger-btn" id="d-delete">Delete task</button>
     </div>
@@ -1224,6 +1345,168 @@ function wireDetail(task) {
   for (const row of el.detailInner.querySelectorAll('[data-row]')) {
     row.addEventListener('click', () => openRowPicker(row.dataset.row, row, task));
   }
+
+  wireComments(task);
+}
+
+function wireComments(task) {
+  const draft = draftFor(task.id);
+  const composer = document.getElementById('c-composer');
+  const text = document.getElementById('c-text');
+  const pending = document.getElementById('c-pending');
+
+  const grow = () => {
+    text.style.height = 'auto';
+    text.style.height = `${Math.min(text.scrollHeight, 220)}px`;
+  };
+  grow();
+
+  text.addEventListener('input', () => { draft.text = text.value; grow(); });
+
+  const redrawPending = () => { pending.innerHTML = pendingChips(draft.paths); };
+
+  const attach = (paths) => {
+    for (const p of paths) if (p && !draft.paths.includes(p)) draft.paths.push(p);
+    redrawPending();
+  };
+
+  pending.addEventListener('click', (e) => {
+    const button = e.target.closest('[data-unpend]');
+    if (!button) return;
+    draft.paths.splice(Number(button.dataset.unpend), 1);
+    redrawPending();
+  });
+
+  document.getElementById('c-attach').addEventListener('click', async () => {
+    attach(await window.api.pickAttachments());
+    text.focus();
+  });
+
+  const send = async () => {
+    const body = text.value.trim();
+    if (!body && !draft.paths.length) return;
+    const paths = draft.paths.slice();
+    commentDraft = { taskId: task.id, text: '', paths: [] };
+    const { state: next, result } = await window.api.addComment(task.id, { text: body, paths });
+    state = next;
+    render();
+    if (result && result.failed && result.failed.length) {
+      toast(`Could not attach ${esc(result.failed.join(', '))}`);
+    }
+    const again = document.getElementById('c-text');
+    if (again) again.focus();
+  };
+
+  document.getElementById('c-send').addEventListener('click', send);
+  text.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); send(); }
+  });
+
+  // Dropping files anywhere on the composer attaches them.
+  let depth = 0;
+  composer.addEventListener('dragenter', (e) => {
+    e.preventDefault();
+    depth += 1;
+    composer.classList.add('dropping');
+  });
+  composer.addEventListener('dragover', (e) => { e.preventDefault(); });
+  composer.addEventListener('dragleave', () => {
+    depth = Math.max(0, depth - 1);
+    if (!depth) composer.classList.remove('dropping');
+  });
+  composer.addEventListener('drop', (e) => {
+    e.preventDefault();
+    depth = 0;
+    composer.classList.remove('dropping');
+    const paths = [...(e.dataTransfer.files || [])]
+      .map((file) => window.api.pathForFile(file))
+      .filter(Boolean);
+    if (paths.length) attach(paths);
+    else toast('That could not be attached — try the paperclip.');
+  });
+
+  wireCommentList(task);
+}
+
+function wireCommentList(task) {
+  const list = el.detailInner.querySelector('.comment-list');
+  if (!list) return;
+
+  list.addEventListener('click', async (e) => {
+    const open = e.target.closest('[data-open]');
+    if (open) {
+      const error = await window.api.openAttachment(open.dataset.open);
+      if (error) toast('That file could not be opened — it may have been removed.');
+      return;
+    }
+
+    const rm = e.target.closest('[data-rm-att]');
+    if (rm) {
+      await commit(window.api.deleteAttachment(task.id, rm.dataset.rmComment, rm.dataset.rmAtt));
+      return;
+    }
+
+    const del = e.target.closest('[data-del-comment]');
+    if (del) {
+      await commit(window.api.deleteComment(task.id, del.dataset.delComment));
+      return;
+    }
+
+    const edit = e.target.closest('[data-edit]');
+    if (edit) startCommentEdit(task, edit.dataset.edit);
+  });
+
+  // Right-click an attachment to show it in the Finder.
+  list.addEventListener('contextmenu', (e) => {
+    const open = e.target.closest('[data-open]');
+    if (!open) return;
+    e.preventDefault();
+    openOptionMenu(open, [
+      { value: 'open', label: 'Open', icon: ICONS.file },
+      { value: 'reveal', label: 'Show in Finder', icon: ICONS.search }
+    ], (value) => {
+      if (value === 'open') window.api.openAttachment(open.dataset.open);
+      else window.api.revealAttachment(open.dataset.open);
+    });
+  });
+}
+
+function startCommentEdit(task, commentId) {
+  const node = el.detailInner.querySelector(`[data-comment="${commentId}"]`);
+  const comment = (task.comments || []).find((c) => c.id === commentId);
+  const body = node && node.querySelector('.comment-text');
+  if (!comment || !body || node.querySelector('.comment-edit')) return;
+
+  body.hidden = true;
+  const editor = document.createElement('div');
+  editor.className = 'comment-edit';
+  editor.innerHTML = `
+    <textarea class="comment-edit-text"></textarea>
+    <div class="comment-edit-actions">
+      <button class="ghost-btn" data-cancel>Cancel</button>
+      <button class="primary-btn" data-save>Save</button>
+    </div>`;
+  node.insertBefore(editor, body.nextSibling);
+
+  const field = editor.querySelector('textarea');
+  field.value = comment.text;
+  field.focus();
+  field.setSelectionRange(field.value.length, field.value.length);
+
+  const cancel = () => { editor.remove(); body.hidden = false; };
+  const save = async () => {
+    const value = field.value.trim();
+    if (value === comment.text) return cancel();
+    editor.remove();
+    await commit(window.api.updateComment(task.id, commentId, value));
+  };
+
+  editor.querySelector('[data-cancel]').addEventListener('click', cancel);
+  editor.querySelector('[data-save]').addEventListener('click', save);
+  field.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') { e.preventDefault(); cancel(); }
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); save(); }
+  });
 }
 
 /** Opens the right picker for a detail row. */
@@ -1309,6 +1592,57 @@ function closeDialog() {
   }, REDUCED ? 0 : 200);
 }
 
+/** The ⋯ menu on a project row: the only obvious way to edit or delete one. */
+function projectMenu(anchor, project) {
+  if (!project) return;
+  anchor.classList.add('menu-open');
+  openOptionMenu(anchor, [
+    { value: 'edit', label: 'Edit project', icon: ICONS.pencil },
+    { value: 'delete', label: 'Delete project', icon: ICONS.trash, danger: true }
+  ], (value) => {
+    if (value === 'edit') projectDialog(project);
+    else confirmDeleteProject(project);
+  }, { onClose: () => anchor.classList.remove('menu-open') });
+}
+
+/** Deleting is destructive enough to be worth one question first. */
+function confirmDeleteProject(project) {
+  const n = state.tasks.filter((t) => t.projectId === project.id && !t.completed).length;
+  const fate = n
+    ? `Its ${n} unfinished ${n === 1 ? 'task moves' : 'tasks move'} to Inbox — nothing is lost.`
+    : 'It has no unfinished tasks.';
+
+  openDialog(`
+    <h3>Delete “${esc(project.name)}”?</h3>
+    <p class="dialog-note">${fate}</p>
+    <div class="dialog-actions">
+      <button class="ghost-btn" id="d-cancel">Cancel</button>
+      <button class="danger-btn" id="d-confirm">Delete project</button>
+    </div>`, () => {
+    const confirm = document.getElementById('d-confirm');
+    confirm.focus();
+    document.getElementById('d-cancel').addEventListener('click', closeDialog);
+    confirm.addEventListener('click', async () => {
+      closeDialog();
+      await deleteProject(project);
+    });
+  });
+}
+
+async function deleteProject(project) {
+  if (ui.view === 'project' && ui.projectId === project.id) {
+    ui.view = 'today';
+    ui.projectId = null;
+  }
+  const { state: next, result } = await window.api.deleteProject(project.id);
+  state = next;
+  render();
+  const moved = result && result.moved
+    ? ` · ${result.moved} ${result.moved === 1 ? 'task' : 'tasks'} moved to Inbox`
+    : '';
+  toast(`Deleted <b>${esc(project.name)}</b>${moved}`);
+}
+
 function projectDialog(existing) {
   let color = existing ? existing.color : nextColor();
 
@@ -1363,13 +1697,9 @@ function projectDialog(existing) {
 
     const del = document.getElementById('p-delete');
     if (del) {
-      del.addEventListener('click', async () => {
+      del.addEventListener('click', () => {
         closeDialog();
-        if (ui.view === 'project' && ui.projectId === existing.id) {
-          ui.view = 'today';
-          ui.projectId = null;
-        }
-        await commit(window.api.deleteProject(existing.id));
+        setTimeout(() => confirmDeleteProject(existing), REDUCED ? 0 : 210);
       });
     }
   });
@@ -1636,6 +1966,11 @@ el.views.addEventListener('click', (e) => {
 });
 
 el.projects.addEventListener('click', (e) => {
+  const more = e.target.closest('[data-more]');
+  if (more) {
+    projectMenu(more, projectById(more.dataset.more));
+    return;
+  }
   const button = e.target.closest('[data-project]');
   if (button) goTo('project', button.dataset.project);
 });
@@ -1893,6 +2228,15 @@ window.api.onStateChange((next) => {
   state = next;
   render();
 });
+
+// A file dropped anywhere but the composer would otherwise make the window
+// navigate to it, replacing the whole app with the file's contents.
+for (const type of ['dragover', 'drop']) {
+  window.addEventListener(type, (e) => {
+    if (e.target.closest && e.target.closest('#c-composer')) return;
+    e.preventDefault();
+  });
+}
 
 window.api.onMenu((channel, payload) => {
   if (channel === 'menu:focus-task') {

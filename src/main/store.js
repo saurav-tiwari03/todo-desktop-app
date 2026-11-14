@@ -29,6 +29,9 @@ class Store {
   constructor(dir) {
     this.file = path.join(dir, 'tasks.json');
     this.backup = path.join(dir, 'tasks.backup.json');
+    // Attached files are copied here rather than referenced where they sit, so
+    // a task keeps its attachment after the original is moved or deleted.
+    this.attachmentsDir = path.join(dir, 'attachments');
     this.data = this.load();
   }
 
@@ -59,6 +62,7 @@ class Store {
       if (!('repeat' in task)) task.repeat = null;
       if (!Array.isArray(task.reminders)) task.reminders = [];
       if (!('completions' in task)) task.completions = 0;
+      if (!Array.isArray(task.comments)) task.comments = [];
       if (!STATUSES.includes(task.status)) task.status = task.completed ? 'done' : 'todo';
     }
     if (!data.projects.some((p) => p.inbox)) {
@@ -111,6 +115,7 @@ class Store {
       completed: false,
       completedAt: null,
       completions: 0,
+      comments: [],
       createdAt: now,
       updatedAt: now,
       order: this.data.tasks.length
@@ -198,17 +203,130 @@ class Store {
   }
 
   deleteTask(id) {
-    const before = this.data.tasks.length;
+    const doomed = this.data.tasks.filter((t) => t.id === id);
     this.data.tasks = this.data.tasks.filter((t) => t.id !== id);
-    if (this.data.tasks.length !== before) this.save();
-    return { deleted: before - this.data.tasks.length };
+    if (!doomed.length) return { deleted: 0 };
+    this.discardFiles(doomed);
+    this.save();
+    return { deleted: doomed.length };
   }
 
   clearCompleted() {
-    const before = this.data.tasks.length;
+    const doomed = this.data.tasks.filter((t) => t.completed);
     this.data.tasks = this.data.tasks.filter((t) => !t.completed);
+    this.discardFiles(doomed);
     this.save();
-    return { deleted: before - this.data.tasks.length };
+    return { deleted: doomed.length };
+  }
+
+  /* ------------------------------------------------- comments and files */
+
+  /**
+   * Copies a file into the attachments folder and describes it. The copy is
+   * named after its own id, so two files called "scan.pdf" never collide.
+   */
+  importAttachment(sourcePath) {
+    const stat = fs.statSync(sourcePath);
+    if (stat.isDirectory()) throw new Error(`${path.basename(sourcePath)} is a folder`);
+
+    const id = nextId();
+    const name = path.basename(sourcePath);
+    const ext = path.extname(name).toLowerCase();
+    const stored = `${id}${ext}`;
+
+    fs.mkdirSync(this.attachmentsDir, { recursive: true });
+    fs.copyFileSync(sourcePath, path.join(this.attachmentsDir, stored));
+
+    return { id, name, file: stored, size: stat.size, ext: ext.replace('.', '') };
+  }
+
+  attachmentPath(file) {
+    return path.join(this.attachmentsDir, path.basename(file));
+  }
+
+  addComment(taskId, { text = '', paths = [] } = {}) {
+    const task = this.data.tasks.find((t) => t.id === taskId);
+    if (!task) return null;
+
+    const attachments = [];
+    const failed = [];
+    for (const source of paths) {
+      try {
+        attachments.push(this.importAttachment(source));
+      } catch (err) {
+        failed.push(`${path.basename(source)}: ${err.message}`);
+      }
+    }
+
+    const body = String(text).trim();
+    if (!body && !attachments.length) return { comment: null, failed };
+
+    const comment = { id: nextId(), text: body, attachments, at: Date.now(), editedAt: null };
+    task.comments = task.comments || [];
+    task.comments.push(comment);
+    task.updatedAt = Date.now();
+    this.save();
+    return { comment, failed };
+  }
+
+  updateComment(taskId, commentId, text) {
+    const task = this.data.tasks.find((t) => t.id === taskId);
+    const comment = task && (task.comments || []).find((c) => c.id === commentId);
+    if (!comment) return null;
+    const body = String(text).trim();
+    // A comment that is only an attachment may not be emptied into nothing.
+    if (!body && !(comment.attachments || []).length) return comment;
+    comment.text = body;
+    comment.editedAt = Date.now();
+    task.updatedAt = Date.now();
+    this.save();
+    return comment;
+  }
+
+  deleteComment(taskId, commentId) {
+    const task = this.data.tasks.find((t) => t.id === taskId);
+    if (!task) return { deleted: 0 };
+    const doomed = (task.comments || []).filter((c) => c.id === commentId);
+    task.comments = (task.comments || []).filter((c) => c.id !== commentId);
+    if (!doomed.length) return { deleted: 0 };
+    this.unlinkAll(doomed.flatMap((c) => c.attachments || []));
+    task.updatedAt = Date.now();
+    this.save();
+    return { deleted: 1 };
+  }
+
+  deleteAttachment(taskId, commentId, attachmentId) {
+    const task = this.data.tasks.find((t) => t.id === taskId);
+    const comment = task && (task.comments || []).find((c) => c.id === commentId);
+    if (!comment) return { deleted: 0 };
+
+    const doomed = (comment.attachments || []).filter((a) => a.id === attachmentId);
+    comment.attachments = (comment.attachments || []).filter((a) => a.id !== attachmentId);
+    if (!doomed.length) return { deleted: 0 };
+    this.unlinkAll(doomed);
+
+    // An attachment-only comment has nothing left to say once it is gone.
+    if (!comment.text && !comment.attachments.length) {
+      task.comments = task.comments.filter((c) => c.id !== commentId);
+    }
+    task.updatedAt = Date.now();
+    this.save();
+    return { deleted: 1 };
+  }
+
+  /** Attachment files of tasks that are on their way out. */
+  discardFiles(tasks) {
+    this.unlinkAll(tasks.flatMap((t) => (t.comments || []).flatMap((c) => c.attachments || [])));
+  }
+
+  unlinkAll(attachments) {
+    for (const attachment of attachments) {
+      try {
+        fs.unlinkSync(this.attachmentPath(attachment.file));
+      } catch (err) {
+        if (err.code !== 'ENOENT') console.error('Could not remove attachment:', err.message);
+      }
+    }
   }
 
   /* ------------------------------------------------------------- projects */

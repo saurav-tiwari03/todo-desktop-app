@@ -701,15 +701,15 @@ function openReminderPicker(anchor, options) {
 /* Simple option menus                                                       */
 /* ========================================================================= */
 
-function openOptionMenu(anchor, items, onPick) {
+function openOptionMenu(anchor, items, onPick, options = {}) {
   Popover.open(anchor, `
     <div class="pop-list">
-      ${items.map((item) => `<button class="pop-row" data-value="${esc(item.value)}">
+      ${items.map((item) => `<button class="pop-row${item.danger ? ' pop-row-danger' : ''}" data-value="${esc(item.value)}">
         <span class="pop-row-icon">${item.icon || ''}</span>
         <span class="pop-row-label">${item.label}</span>
         ${item.selected ? `<span class="pop-row-hint">${ICONS.check}</span>` : ''}
       </button>`).join('')}
-    </div>`, { width: 212, className: 'pop-menu', onMount: (node) => {
+    </div>`, { width: 212, className: 'pop-menu', onClose: options.onClose, onMount: (node) => {
     node.addEventListener('click', (event) => {
       const row = event.target.closest('[data-value]');
       if (!row) return;

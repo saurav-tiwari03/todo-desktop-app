@@ -1,7 +1,7 @@
 'use strict';
 
 const { app, BrowserWindow, ipcMain, Menu, shell, nativeTheme, Notification,
-  Tray, globalShortcut, nativeImage, screen } = require('electron');
+  Tray, globalShortcut, nativeImage, screen, dialog, protocol, net } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { Store } = require('./store');
@@ -9,6 +9,13 @@ const { Store } = require('./store');
 // Set before anything asks for a path: userData is derived from the app name,
 // so this keeps dev runs and the packaged app on the same data file.
 app.setName('Kodeit Todo');
+
+// Image previews need a source the page's strict CSP can name. Serving them
+// through our own scheme, resolved only inside the attachments folder, beats
+// opening img-src up to file: — the page can then never reach anything else.
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'attachment', privileges: { standard: true, secure: true, supportFetchAPI: true } }
+]);
 
 const isDev = process.argv.includes('--dev');
 const ICON = path.join(__dirname, '..', '..', 'build', 'icon.png');
@@ -120,6 +127,12 @@ function createQuickWindow() {
     show: false,
     frame: false,
     transparent: true,
+    // macOS draws its own shadow and rounded-corner mask at the window bounds.
+    // On a transparent overlay that reads as a stray rectangle floating around
+    // the card, so turn both off — the card's own CSS shadow is the only one
+    // that should be visible.
+    hasShadow: false,
+    roundedCorners: false,
     resizable: false,
     movable: true,
     alwaysOnTop: true,
@@ -316,6 +329,14 @@ app.on('second-instance', () => {
 app.whenReady().then(() => {
   store = new Store(app.getPath('userData'));
 
+  // attachment://file/<stored-name>. basename() in attachmentPath() keeps a
+  // crafted host or path from walking out of the attachments folder.
+  protocol.handle('attachment', (request) => {
+    const name = decodeURIComponent(new URL(request.url).pathname).replace(/^\/+/, '');
+    if (!name) return new Response('Not found', { status: 404 });
+    return net.fetch(`file://${store.attachmentPath(name)}`);
+  });
+
   // Packaged builds take the icon from the bundle; an unpackaged run has to
   // set the dock icon itself or it shows up as generic Electron.
   if (process.platform === 'darwin' && !app.isPackaged && fs.existsSync(ICON)) {
@@ -332,6 +353,31 @@ app.whenReady().then(() => {
   handle('project:add', (input) => store.addProject(input || {}));
   handle('project:update', (id, patch) => store.updateProject(id, patch || {}));
   handle('project:delete', (id) => store.deleteProject(id));
+
+  handle('comment:add', (taskId, input) => store.addComment(taskId, input || {}));
+  handle('comment:update', (taskId, commentId, text) => store.updateComment(taskId, commentId, text));
+  handle('comment:delete', (taskId, commentId) => store.deleteComment(taskId, commentId));
+  handle('attachment:delete', (taskId, commentId, attachmentId) =>
+    store.deleteAttachment(taskId, commentId, attachmentId));
+
+  // Not a `handle()`: it opens a modal and changes no state.
+  ipcMain.handle('attachment:pick', async () => {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Attach files',
+      buttonLabel: 'Attach',
+      properties: ['openFile', 'multiSelections']
+    });
+    return result.canceled ? [] : result.filePaths;
+  });
+
+  ipcMain.handle('attachment:open', async (_event, file) => {
+    const error = await shell.openPath(store.attachmentPath(file));
+    return error || null;
+  });
+
+  ipcMain.handle('attachment:reveal', (_event, file) => {
+    shell.showItemInFolder(store.attachmentPath(file));
+  });
 
   handle('task:complete', (id) => store.completeTask(id, todayISO()));
 

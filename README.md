@@ -185,6 +185,39 @@ outright. The app checks every 30 seconds and raises a native macOS
 notification; clicking it jumps to the task. A reminder whose moment passed
 while the app was closed fires at the next check rather than being missed.
 
+## Comments and attachments
+
+Open a task and the panel has a **Comments** section under the fields. Write a
+comment and send it with the button or `⌘↵`. Comments are timestamped, can be
+edited (the list marks them *edited*) and deleted.
+
+Attach files by clicking the paperclip, or by **dropping them onto the
+composer** — a comment can be text, files, or both. Images show as thumbnails;
+everything else gets a chip with its name and size. Click one to open it in the
+app macOS would normally use; right-click for **Show in Finder**. The ✕ on a
+chip removes a single attachment, and removing the last one from a comment that
+has no text deletes the comment too.
+
+A task carrying comments shows a count in its row — a speech bubble, or a
+paperclip when any of the comments has a file.
+
+### Where the files go
+
+An attached file is **copied** into
+
+```
+~/Library/Application Support/Kodeit Todo/attachments/
+```
+
+rather than linked where it sat, so moving or deleting the original later
+doesn't empty the task. The copy is named after its attachment id, so two files
+called `scan.pdf` never collide. Deleting an attachment, its comment, its task,
+or clearing completed tasks removes the copies too — nothing is left orphaned.
+
+Thumbnails are served over a private `attachment://` scheme that resolves only
+inside that folder, so the page's content-security policy never has to be
+opened up to `file:`.
+
 ## Views
 
 - **Today** — everything due today, with anything overdue called out on top
@@ -248,10 +281,13 @@ Upcoming widen out while Inbox and project views still scope to their project.
 | `⌘⇧N` | new project |
 | `⌘F` | search |
 
-Click a task to open the detail panel (notes, due date, priority, project,
-labels). Double-click or right-click a project in the sidebar to rename,
-recolour or delete it — deleting a project moves its tasks to the Inbox rather
-than throwing them away.
+Click a task to open the detail panel — notes, due date, priority, project,
+labels, reminders and [comments](#comments-and-attachments).
+
+Hover a project in the sidebar for its **⋯** menu: *Edit project* to rename or
+recolour, *Delete project* to remove it. Double-click or right-click the row
+does the same. Deleting asks first and tells you what happens to the contents —
+unfinished tasks move to the Inbox rather than being thrown away.
 
 ## Sample data
 

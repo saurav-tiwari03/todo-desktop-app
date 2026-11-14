@@ -50,7 +50,16 @@ const ICONS = (() => {
     quickTomorrow: svg('<circle cx="8" cy="8" r="3"/><path d="M8 1.6v1.4M8 13v1.4M14.4 8H13M3 8H1.6M12.5 3.5l-1 1M4.5 11.5l-1 1M12.5 12.5l-1-1M4.5 4.5l-1-1"/>'),
     quickNextWeek: svg('<rect x="2.4" y="3.4" width="11.2" height="9.2" rx="2"/><path d="M5.8 8h4.4M8.6 6.4L10.2 8l-1.6 1.6"/>'),
     quickWeekend: svg('<path d="M2.4 9.4V7a1.6 1.6 0 0 1 3.2 0v1.4h4.8V7a1.6 1.6 0 0 1 3.2 0v2.4"/><rect x="1.8" y="9.2" width="12.4" height="3.4" rx="1.3"/>'),
-    quickClear: svg('<circle cx="8" cy="8" r="6"/><path d="M5.6 5.6l4.8 4.8M10.4 5.6l-4.8 4.8"/>')
+    quickClear: svg('<circle cx="8" cy="8" r="6"/><path d="M5.6 5.6l4.8 4.8M10.4 5.6l-4.8 4.8"/>'),
+
+    // Row actions
+    more: svg('<circle cx="3.4" cy="8" r="1.15" fill="currentColor" stroke="none"/><circle cx="8" cy="8" r="1.15" fill="currentColor" stroke="none"/><circle cx="12.6" cy="8" r="1.15" fill="currentColor" stroke="none"/>'),
+    pencil: svg('<path d="M11.1 2.9a1.7 1.7 0 0 1 2.4 2.4L5.8 13 2.6 13.8l.8-3.2z"/><path d="M10.1 3.9l2.4 2.4"/>'),
+    comment: svg('<path d="M13.8 9.6a1.6 1.6 0 0 1-1.6 1.6H5.8L2.6 14V3.8a1.6 1.6 0 0 1 1.6-1.6h8a1.6 1.6 0 0 1 1.6 1.6z"/>'),
+    paperclip: svg('<path d="M13.1 7.6l-5.3 5.3a3.1 3.1 0 0 1-4.4-4.4l5.6-5.6a2.1 2.1 0 0 1 2.9 2.9l-5.4 5.4a1 1 0 0 1-1.4-1.4l4.8-4.8"/>'),
+    file: svg('<path d="M9 1.9H4.6a1.4 1.4 0 0 0-1.4 1.4v9.4a1.4 1.4 0 0 0 1.4 1.4h6.8a1.4 1.4 0 0 0 1.4-1.4V5.4z"/><path d="M9 1.9v3.5h3.8"/>'),
+    send: svg('<path d="M14 2.4L7.3 9.1M14 2.4l-4.3 11.8-2.4-5.1-5.1-2.4z"/>'),
+    trash: svg('<path d="M2.8 4.4h10.4M6.4 4.4V3.1a1 1 0 0 1 1-1h1.2a1 1 0 0 1 1 1v1.3"/><path d="M4.2 4.4l.6 8.2a1.2 1.2 0 0 0 1.2 1.1h4a1.2 1.2 0 0 0 1.2-1.1l.6-8.2"/><path d="M6.8 6.9v4.3M9.2 6.9v4.3"/>')
   };
 })();
 

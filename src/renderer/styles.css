@@ -264,6 +264,45 @@ body.resizing-x { cursor: col-resize; -webkit-user-select: none; user-select: no
 
 .nav-item.active .nav-count { color: var(--text-dim); }
 
+/* A project row carries a ⋯ button, so the row is a wrapper and the button
+   sits beside the nav-item rather than inside it — a button cannot nest. */
+.nav-row { position: relative; }
+
+.nav-more {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--fast) var(--ease-out),
+              color var(--fast) var(--ease-out),
+              background-color var(--fast) var(--ease-out);
+}
+
+.nav-more svg { width: 15px; height: 15px; display: block; }
+
+.nav-row:hover .nav-more,
+.nav-more:focus-visible,
+.nav-more.menu-open { opacity: 1; pointer-events: auto; }
+
+.nav-more:hover,
+.nav-more.menu-open { color: var(--text); background: var(--border); }
+
+/* The count would sit under the ⋯, so trade one for the other. */
+.nav-row:hover .nav-count,
+.nav-row:has(.nav-more.menu-open) .nav-count { opacity: 0; }
+
 .dot {
   /* inline-block so it keeps its size outside a flex parent too */
   display: inline-block;
@@ -895,6 +934,233 @@ body.resizing-x { cursor: col-resize; -webkit-user-select: none; user-select: no
 
 .detail-foot { display: flex; gap: 8px; margin-top: 20px; }
 
+/* ===========================================================================
+   Comments and attachments
+   ========================================================================= */
+
+.comments { margin-top: 26px; border-top: 1px solid var(--border); padding-top: 18px; }
+
+.comments-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0 0 12px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.comments-head svg { width: 14px; height: 14px; }
+
+.comments-n {
+  min-width: 17px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: var(--hover);
+  color: var(--text-dim);
+  font-size: 10.5px;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.comments-empty { margin: 0 0 14px; color: var(--text-faint); line-height: 1.6; }
+
+.comment-list { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; }
+
+.comment {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  padding: 9px 11px 10px;
+  animation: comment-in 260ms var(--ease-out) both;
+}
+
+@keyframes comment-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.comment-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11.5px;
+  color: var(--text-faint);
+}
+
+.comment-edited { font-style: italic; }
+.comment-tools { margin-left: auto; display: flex; gap: 2px; opacity: 0; transition: opacity var(--fast) var(--ease-out); }
+.comment:hover .comment-tools,
+.comment:focus-within .comment-tools { opacity: 1; }
+.comment-tools .icon-btn { width: 24px; height: 24px; }
+.comment-tools svg { width: 14px; height: 14px; }
+
+.comment-text { margin: 5px 0 0; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+
+.comment-edit { margin-top: 6px; }
+.comment-edit-text {
+  width: 100%;
+  min-height: 62px;
+  resize: vertical;
+  padding: 7px 9px;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+}
+.comment-edit-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 7px; }
+
+/* --- attachments --- */
+
+.att-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 9px; }
+
+.att { position: relative; }
+
+.att-x {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg-raised);
+  color: var(--text-dim);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--fast) var(--ease-out), color var(--fast) var(--ease-out);
+}
+
+.att-x svg { width: 10px; height: 10px; }
+.att:hover .att-x, .att-x:focus-visible, .pending-chip:hover .att-x { opacity: 1; }
+.att-x:hover { color: var(--p1); border-color: var(--p1); }
+
+.att-open {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg);
+  color: inherit;
+  cursor: pointer;
+  overflow: hidden;
+  transition: border-color var(--fast) var(--ease-out), transform var(--fast) var(--ease-out);
+}
+
+.att-open:hover { border-color: var(--text-faint); }
+.att-open:active { transform: scale(0.98); }
+
+.att-file .att-open { padding: 7px 10px; max-width: 230px; }
+.att-icon { display: grid; place-items: center; color: var(--text-faint); flex: 0 0 auto; }
+.att-icon svg { width: 16px; height: 16px; }
+.att-text { display: flex; flex-direction: column; min-width: 0; text-align: left; }
+.att-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.att-size { font-size: 11px; color: var(--text-faint); }
+
+.att-image .att-open { width: 104px; height: 78px; display: block; }
+.att-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.att-cap {
+  display: block;
+  width: 104px;
+  margin-top: 3px;
+  font-size: 11px;
+  color: var(--text-faint);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* --- composer --- */
+
+.composer {
+  position: relative;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-raised);
+  padding: 9px 10px;
+  transition: border-color var(--fast) var(--ease-out);
+}
+
+.composer:focus-within { border-color: var(--accent); }
+
+#c-text {
+  width: 100%;
+  min-height: 42px;
+  max-height: 220px;
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--text);
+  line-height: 1.6;
+  resize: none;
+  outline: none;
+}
+
+#c-text::placeholder { color: var(--text-faint); }
+
+.composer-pending { display: flex; flex-wrap: wrap; gap: 6px; }
+.composer-pending:not(:empty) { margin-top: 8px; }
+
+.pending-chip {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  max-width: 190px;
+  padding: 4px 9px;
+  border: 1px dashed var(--border);
+  border-radius: 999px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.pending-chip svg { width: 13px; height: 13px; flex: 0 0 auto; }
+.pending-chip .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.composer-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.composer-actions .icon-btn { width: 28px; height: 28px; }
+.composer-actions .icon-btn svg { width: 15px; height: 15px; }
+.composer-hint { flex: 1; font-size: 11px; color: var(--text-faint); }
+.composer-actions .primary-btn { display: flex; align-items: center; gap: 6px; }
+.composer-actions .primary-btn svg { width: 14px; height: 14px; }
+
+.composer-drop {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  border: 1.5px dashed var(--accent);
+  border-radius: inherit;
+  background: var(--accent-wash);
+  color: var(--accent);
+  font-weight: 560;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--fast) var(--ease-out);
+}
+
+.composer.dropping .composer-drop { opacity: 1; }
+
+/* The count badge a task row shows when it carries comments. */
+.row-comments {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--text-faint);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.row-comments svg { width: 13px; height: 13px; }
+
 .danger-btn {
   border: 1px solid var(--border);
   background: var(--bg);
@@ -912,6 +1178,8 @@ body.resizing-x { cursor: col-resize; -webkit-user-select: none; user-select: no
 .danger-btn:active { transform: scale(0.97); }
 
 .detail-meta { color: var(--text-faint); font-size: 11px; margin-top: 16px; line-height: 1.7; }
+
+.dialog-note { color: var(--text-dim); margin: 0 0 18px; line-height: 1.6; }
 
 /* ===========================================================================
    Dialog
@@ -1252,6 +1520,8 @@ body.resizing-x { cursor: col-resize; -webkit-user-select: none; user-select: no
 .pop-row:hover { background: var(--hover); }
 .pop-row:active { transform: scale(0.99); }
 .pop-row.wide { padding: 8px 10px; }
+.pop-row-danger { color: var(--p1); }
+.pop-row-danger:hover { background: var(--accent-wash); }
 
 .pop-row-icon {
   width: 16px;

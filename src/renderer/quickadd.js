@@ -125,3 +125,8 @@ window.quick.onOpen((payload) => {
 });
 
 window.addEventListener('load', fit);
+
+// Dropping a file on this window would navigate it away from the card.
+for (const type of ['dragover', 'drop']) {
+  window.addEventListener(type, (e) => e.preventDefault());
+}
