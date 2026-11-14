@@ -297,6 +297,22 @@ function handle(channel, fn) {
   });
 }
 
+// Only one copy may run: both would own the same tasks.json and the last save
+// would silently clobber the other's. A second launch focuses the first instead.
+if (!app.requestSingleInstanceLock()) {
+  app.quit();
+} else {
+
+app.on('second-instance', () => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore();
+    mainWindow.show();
+    mainWindow.focus();
+  } else {
+    createWindow();
+  }
+});
+
 app.whenReady().then(() => {
   store = new Store(app.getPath('userData'));
 
@@ -380,3 +396,5 @@ app.on('window-all-closed', () => {
 app.on('will-quit', () => {
   globalShortcut.unregisterAll();
 });
+
+}

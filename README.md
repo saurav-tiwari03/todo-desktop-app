@@ -16,8 +16,41 @@ npm run dev        # launch with DevTools open
 ## Build a real .app
 
 ```bash
-npm run dist       # produces dist/Kodeit Todo-1.0.0-arm64.dmg
+npm run dist       # dist/Kodeit Todo-1.0.0-arm64.dmg  + dist/mac-arm64/Kodeit Todo.app
+npm run pack       # just the .app, no disk image (faster, for testing)
 ```
+
+Then open the `.dmg` and drag **Kodeit Todo** into Applications. From there it
+behaves like any other Mac app: Spotlight finds it, it keeps its own Dock icon,
+and `⌥Space` works whether or not the window is open.
+
+### About code signing
+
+There is no Apple Developer ID here, so electron-builder can't sign the app
+properly and says so during the build. macOS on Apple Silicon refuses to launch
+a *completely* unsigned app, so `scripts/adhoc-sign.js` (wired in as
+electron-builder's `afterPack` hook) gives the bundle an **ad-hoc** signature.
+That is enough to run it on this Mac.
+
+It is *not* enough to hand to anyone else: another Mac will quarantine the
+download and refuse it, since an ad-hoc signature carries no identity to check.
+On a machine that didn't build it, clear the quarantine flag once:
+
+```bash
+xattr -dr com.apple.quarantine "/Applications/Kodeit Todo.app"
+```
+
+Proper distribution would need a paid Developer ID plus notarisation.
+
+### Only one copy runs
+
+The app takes a single-instance lock. Both copies would own the same
+`tasks.json` and whichever saved last would silently clobber the other, so a
+second launch just focuses the window that's already running. That matters most
+when the installed app and `npm start` are both around — they share one data
+file.
+
+### The icon
 
 The app icon is built from the source logo in the project root:
 
