@@ -32,15 +32,64 @@ a *completely* unsigned app, so `scripts/adhoc-sign.js` (wired in as
 electron-builder's `afterPack` hook) gives the bundle an **ad-hoc** signature.
 That is enough to run it on this Mac.
 
-It is *not* enough to hand to anyone else: another Mac will quarantine the
-download and refuse it, since an ad-hoc signature carries no identity to check.
-On a machine that didn't build it, clear the quarantine flag once:
+It is *not* enough to hand to anyone else — an ad-hoc signature carries no
+identity for macOS to check, so another Mac blocks it on first launch. See
+[Why recipients see a warning](#why-recipients-see-a-warning-and-what-removes-it).
+
+### Giving it to someone else
 
 ```bash
-xattr -dr com.apple.quarantine "/Applications/Kodeit Todo.app"
+npm run release    # dist/Kodeit Todo 1.0.0/  — the app + INSTALL.txt, and a zip of both
 ```
 
-Proper distribution would need a paid Developer ID plus notarisation.
+Three shapes come out of the build, all the same app:
+
+| What | Where | For |
+|---|---|---|
+| Disk image | `dist/Kodeit Todo-1.0.0-arm64.dmg` | the familiar mount-and-drag install |
+| Folder | `dist/Kodeit Todo 1.0.0/` | copying straight to another Mac you own |
+| Zip | `dist/Kodeit Todo-1.0.0-arm64-folder.zip` | sending it to someone |
+
+Send the **zip**, never the bare folder. A `.app` is a directory full of
+symlinks and signed frameworks, and cloud drives, chat apps and Finder's own
+*Compress* can all rewrite it in transit — which is what produces "the
+application is damaged" at the other end. `scripts/release.js` uses `ditto`
+instead, which preserves the symlinks and extended attributes the signature is
+computed over, then verifies the signature survived and fails the build if it
+didn't.
+
+`INSTALL.txt` goes in the folder and the zip as *INSTALL — read me first.txt*;
+`INSTALL.md` is the same thing in Markdown, for pasting into a message or a
+release page. Both tell the recipient how to get past the Gatekeeper warning.
+
+### Why recipients see a warning (and what removes it)
+
+Apps you download that just install with no fuss are **signed with a Developer
+ID and notarised** — Apple has checked them and macOS can name the developer.
+Neither is possible without a paid Apple Developer Program membership
+(**$99/year**). There is no configuration, flag or packaging format that avoids
+Gatekeeper; a `.pkg` installer is blocked exactly the same way.
+
+So right now every recipient gets blocked once, and clears it from
+ System Settings → Privacy & Security → **Open Anyway**. On your own Mac you
+never see this, because a file you built locally is never flagged as downloaded.
+
+Once you do have a Developer ID, no code changes are needed:
+
+```bash
+export CSC_LINK=~/certs/developer-id.p12       # your exported certificate
+export CSC_KEY_PASSWORD=...                    # its password
+export APPLE_ID=you@example.com
+export APPLE_APP_SPECIFIC_PASSWORD=xxxx-xxxx-xxxx-xxxx   # appleid.apple.com
+export APPLE_TEAM_ID=XXXXXXXXXX
+
+npm run dist:signed
+```
+
+electron-builder then signs with the real certificate instead of the ad-hoc
+one, uploads the build to Apple for notarisation, waits, and staples the ticket
+into the disk image. The result installs with no warning on any Mac — the
+experience you get from every other app you download.
 
 ### Only one copy runs
 

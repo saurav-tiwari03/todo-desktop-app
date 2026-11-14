@@ -1,0 +1,93 @@
+KODEIT TODO — INSTALL
+=====================
+
+Requires an Apple Silicon Mac (M1 or newer), macOS 11 or later.
+
+
+1. INSTALL
+----------
+
+  From the .dmg : double-click it, then drag "Kodeit Todo" onto the
+                  Applications shortcut beside it. Then eject the disk image.
+
+  From the zip  : double-click to unpack, then drag "Kodeit Todo.app"
+                  into your Applications folder.
+
+Run it from Applications — not from the disk image or your Downloads folder.
+
+
+2. THE FIRST LAUNCH IS BLOCKED. THIS IS EXPECTED.
+-------------------------------------------------
+
+macOS will say:
+
+   "Kodeit Todo" can't be opened because Apple cannot check it for
+   malicious software.
+
+This app is not signed with a paid Apple Developer certificate, so macOS
+cannot identify who made it and blocks it by default. The download is fine.
+To allow it:
+
+   1. Click "Done" on the warning.
+   2. Open System Settings > Privacy & Security.
+   3. Scroll to "Security". It says: "Kodeit Todo" was blocked...
+   4. Click "Open Anyway" and confirm with your password or Touch ID.
+   5. Open the app again. Every launch after this one is normal.
+
+On macOS 15 and later, right-clicking the app and choosing "Open" does NOT
+work for this. Use System Settings as above.
+
+Terminal alternative, if you prefer:
+
+   xattr -dr com.apple.quarantine "/Applications/Kodeit Todo.app"
+
+
+3. USING IT
+-----------
+
+The app is in two places at once: a normal window, and a checkmark icon in
+the menu bar showing how many tasks are due today. Closing the window does
+not quit the app — use the menu-bar icon's Quit.
+
+Press Option+Space from ANY app for a quick-add box over whatever you are
+doing. Type, press Enter, and you are back where you were. Esc cancels.
+
+Type naturally:
+
+   Call the bank tomorrow p1 #Admin @calls
+
+That is a task "Call the bank", due tomorrow, priority 1, in the Admin
+project, labelled "calls".  #Project picks or creates a project, @label adds
+a label, p1-p4 sets priority, and dates like "today", "next monday",
+"25 Dec" and "every weekday" all work.
+
+Press ? inside the app for all keyboard shortcuts.
+
+
+4. YOUR TASKS STAY ON YOUR MAC
+------------------------------
+
+Everything lives in one file:
+
+   ~/Library/Application Support/Kodeit Todo/tasks.json
+
+No account, no sync, no server — nothing leaves your machine. Copy that file
+to back up or move your tasks. Deleting the app leaves it behind.
+
+
+5. TROUBLE
+----------
+
+"The application is damaged and can't be opened."
+   The download was incomplete, or a chat app or cloud drive altered the
+   .app on the way. Get a fresh copy of the .dmg or .zip.
+
+Option+Space does nothing.
+   Another app owns that shortcut — Alfred, Raycast and similar launchers
+   often do. Quit or rebind it. The menu-bar icon's "Quick Add" still works.
+
+No reminder notifications.
+   Allow them in System Settings > Notifications > Kodeit Todo.
+
+Nothing happens at all, with no warning.
+   You are probably on an Intel Mac. This build is Apple Silicon only.

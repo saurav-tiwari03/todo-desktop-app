@@ -13,8 +13,8 @@
     "dist": "electron-builder --mac",
     "pack": "electron-builder --dir",
     "seed": "node scripts/seed.js",
-    "dist:zip": "electron-builder --mac zip",
-    "dist:dmg": "electron-builder --mac dmg"
+    "release": "node scripts/release.js",
+    "dist:signed": "electron-builder --mac --config.mac.notarize=true"
   },
   "devDependencies": {
     "electron": "^34.0.0",
@@ -36,12 +36,6 @@
       "target": [
         {
           "target": "dmg",
-          "arch": [
-            "arm64"
-          ]
-        },
-        {
-          "target": "zip",
           "arch": [
             "arm64"
           ]
