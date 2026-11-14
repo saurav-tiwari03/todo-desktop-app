@@ -117,9 +117,8 @@ whenever the logo changes. (Needs Pillow: `pip3 install pillow`.)
 
 **Add task** in the sidebar (or `⌘N`, or just `q`) opens a floating card over
 whatever you're looking at — type the task, press Enter, done. It works from
-any view, including Completed, and a toast confirms what was added.
-
-The inline box at the top of each list does the same thing without the overlay.
+any view, including Completed, and a toast confirms what was added. It is the
+only way in — there is no inline box at the top of the list.
 
 ### From anywhere: ⌥Space
 

@@ -103,13 +103,154 @@ const NLP = (() => {
       (m) => monthDayToISO(MONTHS[m[2].toLowerCase()], Number(m[1]))]
   ];
 
+  /* ----------------------------------------------------- dictated input */
+
+  // Dictation writes words, not symbols: "p1" comes out as "p one", "#Home"
+  // as "project home". These let the spoken grammar reach the same result.
+  const WORD_NUM = {
+    one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8,
+    nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14,
+    fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19,
+    twenty: 20, thirty: 30, forty: 40, fifty: 50, quarter: 15, half: 30
+  };
+
+  const NUM_WORD = Object.keys(WORD_NUM).join('|');
+
+  // Where a spoken project or label name has to stop: the next keyword, or
+  // any word that starts a date, so "project home tomorrow" keeps them apart.
+  const STOP_WORDS = [
+    'priority', 'project', 'list', 'label', 'tag', 'labelled', 'labeled', 'tagged', 'due',
+    'today', 'tod', 'tomorrow', 'tmrw', 'tmr', 'tom', 'yesterday', 'next', 'in',
+    ...Object.keys(WEEKDAYS), ...Object.keys(MONTHS)
+  ].join('|');
+
+  // A spoken name never starts with one of these, so "tag for the dog" and
+  // "project the roof" stay part of the title instead of being claimed.
+  const FUNCTION_WORDS = new Set([
+    'a', 'an', 'the', 'for', 'to', 'of', 'with', 'and', 'or', 'from', 'about',
+    'into', 'onto', 'that', 'this', 'it', 'is', 'was', 'be', 'my', 'our', 'his',
+    'her', 'their', 'your', 'me', 'him', 'them', 'us', 'up', 'out', 'off'
+  ]);
+
+  function namedValue(raw) {
+    const name = String(raw || '').trim();
+    if (!name) return null;
+    if (FUNCTION_WORDS.has(name.split(/\s+/)[0].toLowerCase())) return null;
+    return name;
+  }
+
+  function spokenNumber(token) {
+    if (token === undefined || token === null) return null;
+    const text = String(token).trim().toLowerCase();
+    if (/^\d+$/.test(text)) return Number(text);
+    if (text in WORD_NUM) return WORD_NUM[text];
+    // "forty five", "twenty one"
+    const parts = text.split(/[\s-]+/);
+    if (parts.length === 2 && parts[0] in WORD_NUM && parts[1] in WORD_NUM) {
+      const tens = WORD_NUM[parts[0]];
+      const units = WORD_NUM[parts[1]];
+      if (tens % 10 === 0 && units < 10) return tens + units;
+    }
+    return null;
+  }
+
+  function pad2(n) {
+    return String(n).padStart(2, '0');
+  }
+
+  /**
+   * Pulls the spoken modifiers out of dictated text and hands the rest to
+   * parse(). The grammar is fixed and documented in the README:
+   *
+   *   <title> [<when>] [at <time>] [priority N] [project NAME] [label NAME]
+   *
+   * Only used when dictation mode is on, because a keyword like "project" is
+   * an ordinary word in a typed title ("call project manager").
+   */
+  function parseSpoken(text, projects = []) {
+    let rest = ` ${String(text || '').trim()} `;
+    const extra = { priority: null, projectName: null, labels: [], dueTime: null };
+
+    // A rule that returns false rejected the match: leave the words in the
+    // title untouched and stop looking, rather than eating them.
+    const take = (re, onMatch) => {
+      let match;
+      while ((match = rest.match(re))) {
+        if (onMatch(match) === false) break;
+        rest = rest.replace(match[0], ' ');
+      }
+    };
+
+    // "at 5pm", "at 5:30 pm", "at five thirty pm", "at seven o'clock"
+    take(new RegExp(
+      `\\bat\\s+(\\d{1,2}|${NUM_WORD})` +
+      `(?:\\s*[:.]\\s*(\\d{2})|\\s+(\\d{2})|\\s+(${NUM_WORD}(?:[\\s-]${NUM_WORD})?))?` +
+      `\\s*(a\\.?\\s?m\\.?|p\\.?\\s?m\\.?|o'?\\s?clock)\\b`, 'i'), (m) => {
+      let hour = spokenNumber(m[1]);
+      const minute = m[2] ? Number(m[2])
+        : m[3] ? Number(m[3])
+        : m[4] ? spokenNumber(m[4]) : 0;
+      const suffix = (m[5] || '').toLowerCase().replace(/[.'\s]/g, '');
+      if (hour === null || hour > 23 || minute === null || minute > 59) return false;
+      if (suffix.startsWith('p') && hour < 12) hour += 12;
+      if (suffix.startsWith('a') && hour === 12) hour = 0;
+      extra.dueTime = `${pad2(hour)}:${pad2(minute)}`;
+    });
+
+    // "priority one", "priority 1", "p two"
+    take(new RegExp(`\\b(?:priority|p)\\s+(${NUM_WORD}|[1-4])\\b`, 'i'), (m) => {
+      const n = spokenNumber(m[1]);
+      if (!n || n < 1 || n > 4) return false;
+      extra.priority = n;
+    });
+
+    // "project Home", "in list Errands"
+    take(new RegExp(
+      `\\b(?:in\\s+)?(?:project|list)\\s+(.+?)(?=\\s+(?:${STOP_WORDS})\\b|\\s*$)`, 'i'), (m) => {
+      const name = namedValue(m[1]);
+      if (!name) return false;
+      extra.projectName = name;
+    });
+
+    // "label calls", "tag urgent"
+    take(new RegExp(
+      `\\b(?:label|labelled|labeled|tag|tagged)\\s+(.+?)(?=\\s+(?:${STOP_WORDS})\\b|\\s*$)`, 'i'), (m) => {
+      const name = namedValue(m[1]);
+      if (!name) return false;
+      // "label calls and errands" -> two labels
+      for (const part of name.split(/\s+(?:and|,)\s+/i)) {
+        const label = part.trim().replace(/\s+/g, '-');
+        if (label) extra.labels.push(label);
+      }
+    });
+
+    // "due tomorrow" — drop the cue and let the date rules read the rest.
+    rest = rest.replace(/\bdue\s+(?=\S)/i, ' ');
+
+    const out = parse(rest, projects);
+    if (extra.priority) out.priority = extra.priority;
+    if (extra.dueTime) out.dueTime = extra.dueTime;
+    if (extra.labels.length) out.labels = [...out.labels, ...extra.labels];
+    if (extra.projectName && !out.projectId && !out.projectName) {
+      // Match a real project first so "project home" finds an existing Home.
+      const hit = projects.find((p) => p.name.toLowerCase() === extra.projectName.toLowerCase());
+      if (hit) {
+        out.projectId = hit.id;
+        out.projectName = hit.name;
+      } else {
+        out.projectName = extra.projectName;
+      }
+    }
+    return out;
+  }
+
   /**
    * @param {string} text raw quick-add input
    * @param {Array<{id: string, name: string}>} projects for resolving #project
    */
   function parse(text, projects = []) {
     let rest = ` ${text} `;
-    const out = { title: '', due: null, priority: 4, projectId: null, projectName: null, labels: [] };
+    const out = { title: '', due: null, dueTime: null, priority: 4, projectId: null, projectName: null, labels: [] };
 
     // #project — matched against real project names, longest name first so
     // "#Work Trip" beats "#Work" when both exist.
@@ -167,7 +308,7 @@ const NLP = (() => {
     return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   }
 
-  return { parse, toISO, fromISO, addDays, startOfToday };
+  return { parse, parseSpoken, toISO, fromISO, addDays, startOfToday };
 })();
 
 if (typeof module !== 'undefined') module.exports = NLP;

@@ -471,70 +471,6 @@ body.resizing-x { cursor: col-resize; -webkit-user-select: none; user-select: no
   transition: width 450ms var(--ease-out);
 }
 
-/* ------------------------------------------------------------------ composer */
-
-.composer { padding: 14px 30px 2px; flex: 0 0 auto; }
-
-.composer-field {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  border: 1px solid var(--border);
-  background: var(--bg-raised);
-  border-radius: var(--radius);
-  padding: 0 12px;
-  box-shadow: var(--shadow-sm);
-  transition: border-color var(--med) var(--ease-out),
-              box-shadow var(--med) var(--ease-out),
-              transform var(--med) var(--ease-spring);
-}
-
-.composer-field:focus-within {
-  border-color: var(--accent);
-  box-shadow: var(--shadow-md), 0 0 0 3px var(--accent-wash);
-}
-
-.composer-field .plus {
-  width: 15px;
-  height: 15px;
-  color: var(--text-faint);
-  flex: 0 0 auto;
-  transition: color var(--med) var(--ease-out), transform var(--slow) var(--ease-spring);
-}
-
-.composer-field:focus-within .plus { color: var(--accent); transform: rotate(90deg); }
-
-#quick-add {
-  flex: 1;
-  border: 0;
-  background: none;
-  padding: 11px 0;
-  min-width: 0;
-}
-
-#quick-add::placeholder { color: var(--text-faint); }
-
-@keyframes composer-pop {
-  0% { transform: scale(1); }
-  40% { transform: scale(1.012); }
-  100% { transform: scale(1); }
-}
-
-.composer-field.added { animation: composer-pop 320ms var(--ease-out); }
-
-.composer-hint {
-  min-height: 18px;
-  padding: 5px 4px 0;
-  font-size: 11.5px;
-  color: var(--text-dim);
-  opacity: 0;
-  transform: translateY(-2px);
-  transition: opacity var(--med) var(--ease-out), transform var(--med) var(--ease-out);
-}
-
-.composer-hint.visible { opacity: 1; transform: none; }
-.composer-hint b { color: var(--text); font-weight: 600; }
-
 /* ===========================================================================
    Task list
    ========================================================================= */
@@ -1078,9 +1014,9 @@ body.resizing-x { cursor: col-resize; -webkit-user-select: none; user-select: no
   white-space: nowrap;
 }
 
-/* --- composer --- */
+/* --- comment composer --- */
 
-.composer {
+.cmt-composer {
   position: relative;
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -1089,7 +1025,7 @@ body.resizing-x { cursor: col-resize; -webkit-user-select: none; user-select: no
   transition: border-color var(--fast) var(--ease-out);
 }
 
-.composer:focus-within { border-color: var(--accent); }
+.cmt-composer:focus-within { border-color: var(--accent); }
 
 #c-text {
   width: 100%;
@@ -1106,8 +1042,8 @@ body.resizing-x { cursor: col-resize; -webkit-user-select: none; user-select: no
 
 #c-text::placeholder { color: var(--text-faint); }
 
-.composer-pending { display: flex; flex-wrap: wrap; gap: 6px; }
-.composer-pending:not(:empty) { margin-top: 8px; }
+.cmt-pending { display: flex; flex-wrap: wrap; gap: 6px; }
+.cmt-pending:not(:empty) { margin-top: 8px; }
 
 .pending-chip {
   position: relative;
@@ -1125,14 +1061,14 @@ body.resizing-x { cursor: col-resize; -webkit-user-select: none; user-select: no
 .pending-chip svg { width: 13px; height: 13px; flex: 0 0 auto; }
 .pending-chip .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-.composer-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
-.composer-actions .icon-btn { width: 28px; height: 28px; }
-.composer-actions .icon-btn svg { width: 15px; height: 15px; }
-.composer-hint { flex: 1; font-size: 11px; color: var(--text-faint); }
-.composer-actions .primary-btn { display: flex; align-items: center; gap: 6px; }
-.composer-actions .primary-btn svg { width: 14px; height: 14px; }
+.cmt-actions { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.cmt-actions .icon-btn { width: 28px; height: 28px; }
+.cmt-actions .icon-btn svg { width: 15px; height: 15px; }
+.cmt-hint { flex: 1; font-size: 11px; color: var(--text-faint); }
+.cmt-actions .primary-btn { display: flex; align-items: center; gap: 6px; }
+.cmt-actions .primary-btn svg { width: 14px; height: 14px; }
 
-.composer-drop {
+.cmt-drop {
   position: absolute;
   inset: 0;
   display: grid;
@@ -1147,7 +1083,7 @@ body.resizing-x { cursor: col-resize; -webkit-user-select: none; user-select: no
   transition: opacity var(--fast) var(--ease-out);
 }
 
-.composer.dropping .composer-drop { opacity: 1; }
+.cmt-composer.dropping .cmt-drop { opacity: 1; }
 
 /* The count badge a task row shows when it carries comments. */
 .row-comments {
@@ -1268,7 +1204,7 @@ body.resizing-x { cursor: col-resize; -webkit-user-select: none; user-select: no
 .prio-3 { color: var(--p3); font-weight: 560; }
 
 .sidebar-note { padding: 5px 11px; color: var(--text-faint); font-size: 12px; margin: 0; }
-.composer.hidden, .empty.hidden { display: none; }
+.empty.hidden { display: none; }
 
 /* ===========================================================================
    Scrollbars
@@ -1303,7 +1239,6 @@ body.resizing-x { cursor: col-resize; -webkit-user-select: none; user-select: no
   }
 }
 
-.composer-field .plus svg { width: 100%; height: 100%; display: block; }
 
 /* ===========================================================================
    Add task (sidebar)

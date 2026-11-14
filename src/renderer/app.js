@@ -30,10 +30,6 @@ const el = {
   viewSubtitle: document.getElementById('view-subtitle'),
   progress: document.getElementById('progress'),
   progressBar: document.getElementById('progress-bar'),
-  composer: document.getElementById('composer'),
-  composerField: document.getElementById('composer-field'),
-  quickAdd: document.getElementById('quick-add'),
-  composerHint: document.getElementById('composer-hint'),
   listWrap: document.getElementById('list-wrap'),
   taskList: document.getElementById('task-list'),
   calendarView: document.getElementById('calendar-view'),
@@ -269,7 +265,7 @@ async function refresh() {
 
 /**
  * The one path that turns typed text into a task, shared by the inline
- * composer and the floating quick-add card.
+ * floating quick-add card.
  */
 async function addTaskFromText(text, fallbackDue, status) {
   const clean = (text || '').trim();
@@ -305,15 +301,6 @@ async function addTaskFromText(text, fallbackDue, status) {
   state = next;
   render();
   return result;
-}
-
-async function addFromQuickAdd() {
-  const text = el.quickAdd.value.trim();
-  if (!text) return;
-  el.quickAdd.value = '';
-  setHint(el.composerHint, '');
-  pulse(el.composerField, 'added', 340);
-  await addTaskFromText(text);
 }
 
 /** Describes what the parser will make of the typed text. */
@@ -527,7 +514,6 @@ function renderHeader() {
   }
 
   renderProgress(open.length);
-  el.composer.classList.toggle('hidden', ui.view === 'completed');
 
   el.layoutDot.hidden = !layoutChanged();
 }
@@ -1223,15 +1209,15 @@ function commentsSection(task) {
         : '<p class="comments-empty">No comments yet. Add a note to your future self, or attach a file.</p>'}
     </div>
 
-    <div class="composer" id="c-composer">
+    <div class="cmt-composer" id="c-composer">
       <textarea id="c-text" placeholder="Write a comment…">${esc(draft.text)}</textarea>
-      <div class="composer-pending" id="c-pending">${pendingChips(draft.paths)}</div>
-      <div class="composer-actions">
+      <div class="cmt-pending" id="c-pending">${pendingChips(draft.paths)}</div>
+      <div class="cmt-actions">
         <button class="icon-btn" id="c-attach" title="Attach files">${ICONS.paperclip}</button>
-        <span class="composer-hint">Drop files here · ⌘↵ to send</span>
+        <span class="cmt-hint">Drop files here · ⌘↵ to send</span>
         <button class="primary-btn" id="c-send">${ICONS.send}<span>Comment</span></button>
       </div>
-      <div class="composer-drop"><span>Drop to attach</span></div>
+      <div class="cmt-drop"><span>Drop to attach</span></div>
     </div>
   </section>`;
 }
@@ -2037,22 +2023,6 @@ function setHint(node, html) {
   node.classList.toggle('visible', Boolean(html));
 }
 
-el.quickAdd.addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    addFromQuickAdd();
-  } else if (e.key === 'Escape') {
-    el.quickAdd.value = '';
-    setHint(el.composerHint, '');
-    el.quickAdd.blur();
-  }
-});
-
-el.quickAdd.addEventListener('input', () => {
-  const text = el.quickAdd.value.trim();
-  setHint(el.composerHint, text ? hintFor(text) : '');
-});
-
 /* ------------------------------------------------- floating quick-add wiring */
 
 el.quickPlus.innerHTML = ICONS.plus;
@@ -2193,7 +2163,6 @@ el.addProjectBtn.innerHTML = ICONS.plus;
 el.addProjectBtn.addEventListener('click', () => projectDialog(null));
 
 el.searchWrap.insertAdjacentHTML('afterbegin', ICONS.search);
-el.composerField.insertAdjacentHTML('afterbegin', `<span class="plus">${ICONS.plus}</span>`);
 
 el.backdrop.addEventListener('mousedown', (e) => {
   if (e.target === el.backdrop) closeDialog();
